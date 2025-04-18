@@ -1,0 +1,708 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Diagnostics; // For Stopwatch (optional timing)
+using System.Diagnostics.Eventing.Reader;
+using System.Threading.Tasks; // For asynchronous AI move trigger
+
+namespace Caro.NET
+{
+    // Define a simple structure to represent a move
+    public struct Move
+    {
+        public int Row;
+        public int Col;
+
+        public Move(int r, int c) { Row = r; Col = c; }
+
+        // Override for potential use in collections or debugging
+        public override bool Equals(object obj) => obj is Move other && Row == other.Row && Col == other.Col;
+        public override int GetHashCode() => HashCode.Combine(Row, Col);
+        public override string ToString() => $"({Row}, {Col})";
+    }
+
+    public class CaroAI
+    {
+        // --- 1. Constants ---
+        public const int BOARD_SIZE = Utils.MAX_ROWS;      // Board size (can be changed)
+        public const int EMPTY_CELL = Utils.CARO_NONE;
+        public const int PLAYER_X = Utils.CARO_X;         // Assume AI is player X
+        public const int PLAYER_O = Utils.CARO_O;         // Assume Human is player O
+        public const int WIN_LENGTH = 5;       // Number of consecutive pieces to win
+
+        // --- 2. Score Table for Aggressive AI ---
+        // Using a static readonly Dictionary for the scores
+        private static readonly Dictionary<string, int> SCORE_AGGRESSIVE = new Dictionary<string, int>
+        {
+            {"FIVE", 100000000},        // Winning move
+            {"BLOCK_FIVE", 90000000},   // Block opponent from forming 5 (even if not yet a winning 5)
+
+            // Bonus for successfully double-blocking opponent's dangerous sequence
+            {"NEUTRALIZE_FOUR_BONUS", 750000}, // Must be significantly higher than BLOCK_FOUR_OPEN
+            {"NEUTRALIZE_THREE_BONUS", 40000}, // Must be significantly higher than BLOCK_THREE_OPEN
+
+            {"FOUR_OPEN", 800000},      // Creating own open four remains very valuable
+            {"BLOCK_FOUR_OPEN", 300000}, // Blocking one end of opponent's open four
+            {"THREE_OPEN", 50000},      // Creating own open three
+            {"BLOCK_THREE_OPEN", 10000}, // Blocking one end of opponent's open three
+
+            {"FOUR_CLOSED", 15000},     // Create a closed four
+            {"BLOCK_FOUR_CLOSED", 5000},// Block opponent's closed four
+            {"BLOCK_THREE_CLOSED", 300}, // Block opponent's closed three
+            {"TWO_OPEN", 100},          // Create an open two
+            {"BLOCK_TWO_OPEN", 50},     // Block opponent's open two
+            {"THREE_CLOSED", 200},      // Create a closed three
+            {"TWO_CLOSED", 15},         // Create a closed two
+            {"BLOCK_TWO_CLOSED", 10},   // Block opponent's closed two
+            {"ONE_OPEN", 2},            // One piece with two open ends
+            {"ONE_CLOSED", 1}           // One piece with one open end
+        };
+
+        private static readonly Random _random = new Random(); // For breaking ties
+
+        // --- 3. CheckWin Function ---
+        /// <summary>
+        /// Checks if the specified 'player' wins at position (r, c) on the given board.
+        /// Adheres to Caro rules: Exactly 5 consecutive pieces, not blocked on both ends by the opponent.
+        /// </summary>
+        /// <param name="r">Row index.</param>
+        /// <param name="c">Column index.</param>
+        /// <param name="player">The player to check for (PLAYER_X or PLAYER_O).</param>
+        /// <param name="currentBoard">The board state (2D array) to check.</param>
+        /// <returns>True if the player wins, false otherwise.</returns>
+        public bool CheckWin(int r, int c, int player, int[,] currentBoard)
+        {
+            // Basic boundary and cell content check
+            if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE || currentBoard[r, c] != player)
+            {
+                return false;
+            }
+
+            int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
+            // Directions: Horizontal, Vertical, Diagonal \, Diagonal /
+            (int dr, int dc)[] directions = { (0, 1), (1, 0), (1, 1), (1, -1) };
+
+            foreach (var dir in directions)
+            {
+                int dr = dir.dr;
+                int dc = dir.dc;
+                int count = 1; // Include the piece at (r, c)
+                int blockedEnds = 0; // Count ends blocked by the opponent
+
+                // Check positive direction (+dr, +dc)
+                int r_check = r + dr;
+                int c_check = c + dc;
+                while (r_check >= 0 && r_check < BOARD_SIZE && c_check >= 0 && c_check < BOARD_SIZE && currentBoard[r_check, c_check] == player)
+                {
+                    count++;
+                    r_check += dr;
+                    c_check += dc;
+                }
+                // Check the blocking status at the positive end
+                if (r_check < 0 || r_check >= BOARD_SIZE || c_check < 0 || c_check >= BOARD_SIZE || currentBoard[r_check, c_check] == opponent)
+                {
+                    blockedEnds++;
+                }
+
+                // Check negative direction (-dr, -dc)
+                r_check = r - dr;
+                c_check = c - dc;
+                while (r_check >= 0 && r_check < BOARD_SIZE && c_check >= 0 && c_check < BOARD_SIZE && currentBoard[r_check, c_check] == player)
+                {
+                    count++;
+                    r_check -= dr;
+                    c_check -= dc;
+                }
+                // Check the blocking status at the negative end
+                if (r_check < 0 || r_check >= BOARD_SIZE || c_check < 0 || c_check >= BOARD_SIZE || currentBoard[r_check, c_check] == opponent)
+                {
+                    blockedEnds++;
+                }
+
+                // Evaluate win condition: Exactly WIN_LENGTH and not blocked on both ends by opponent
+                if (count == WIN_LENGTH && blockedEnds < 2)
+                {
+                    return true; // Win!
+                }
+                // If count > WIN_LENGTH -> no win according to common Caro rules
+            }
+
+            return false; // No winning line found
+        }
+
+        // --- 4. ScoreLine Function (using Aggressive Scores) ---
+        /// <summary>
+        /// Calculates the score for a single line passing through the cell (row, col)
+        /// where 'player' intends to place a piece. Uses SCORE_AGGRESSIVE.
+        /// IMPORTANT: Assumes the player's piece HAS ALREADY BEEN TENTATIVELY PLACED
+        /// on currentBoard[row, col] before calling this function.
+        /// </summary>
+        private int ScoreLine(int[,] currentBoard, int row, int col, int dr, int dc, int player)
+        {
+            int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
+            var currentScores = SCORE_AGGRESSIVE; // Use the aggressive score table
+
+            // Local helper function to count and score sequences
+            int CountAndScoreSequence(int r, int c, int p)
+            {
+                int consecutive = 0;
+                int openEnds = 0;
+                bool startBlockedByOpponent = false;
+                bool endBlockedByOpponent = false;
+                int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
+
+                // Count backwards (-dr, -dc)
+                int temp_r = r - dr;
+                int temp_c = c - dc;
+                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p)
+                {
+                    consecutive++; temp_r -= dr; temp_c -= dc;
+                }
+                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { /* Boundary */ }
+                else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; }
+                else if (currentBoard[temp_r, temp_c] == otherPlayer) { startBlockedByOpponent = true; }
+
+                // Count forwards (+dr, +dc)
+                temp_r = r + dr;
+                temp_c = c + dc;
+                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p)
+                {
+                    consecutive++; temp_r += dr; temp_c += dc;
+                }
+                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { /* Boundary */ }
+                else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; }
+                else if (currentBoard[temp_r, temp_c] == otherPlayer) { endBlockedByOpponent = true; }
+
+                consecutive++; // Count the piece at (r, c) itself
+
+                // Calculate score based on count and open ends
+                if (consecutive >= WIN_LENGTH)
+                {
+                    return (consecutive == WIN_LENGTH && !(startBlockedByOpponent && endBlockedByOpponent)) ? currentScores["FIVE"] : 0;
+                }
+                else if (consecutive == 4)
+                {
+                    return (openEnds == 2) ? currentScores["FOUR_OPEN"] : ((openEnds == 1) ? currentScores["FOUR_CLOSED"] : 0);
+                }
+                else if (consecutive == 3)
+                {
+                    return (openEnds == 2) ? currentScores["THREE_OPEN"] : ((openEnds == 1) ? currentScores["THREE_CLOSED"] : 0);
+                }
+                else if (consecutive == 2)
+                {
+                    return (openEnds == 2) ? currentScores["TWO_OPEN"] : ((openEnds == 1) ? currentScores["TWO_CLOSED"] : 0);
+                }
+                else if (consecutive == 1)
+                {
+                    return (openEnds == 2) ? currentScores["ONE_OPEN"] : ((openEnds == 1) ? currentScores["ONE_CLOSED"] : 0);
+                }
+                return 0;
+            } // End of local function CountAndScoreSequence
+
+            // --- Main scoreLine logic ---
+            int playerScore = CountAndScoreSequence(row, col, player); // Offensive score
+
+            // Calculate defensive score (opponent's potential if they played here)
+            currentBoard[row, col] = opponent; // Tentatively place opponent's piece
+            int opponentPotentialScore = CountAndScoreSequence(row, col, opponent);
+            currentBoard[row, col] = player;   // Restore player's piece IMPORTANT!
+
+            // Combine scores
+            if (playerScore >= currentScores["FIVE"]) return currentScores["FIVE"];
+            if (opponentPotentialScore >= currentScores["FIVE"]) return currentScores["BLOCK_FIVE"];
+
+            int blockScore = 0;
+            if (opponentPotentialScore >= currentScores["FOUR_OPEN"]) blockScore = currentScores["BLOCK_FOUR_OPEN"];
+            else if (opponentPotentialScore >= currentScores["FOUR_CLOSED"]) blockScore = currentScores["BLOCK_FOUR_CLOSED"];
+            else if (opponentPotentialScore >= currentScores["THREE_OPEN"]) blockScore = currentScores["BLOCK_THREE_OPEN"];
+            else if (opponentPotentialScore >= currentScores["THREE_CLOSED"]) blockScore = currentScores["BLOCK_THREE_CLOSED"];
+            else if (opponentPotentialScore >= currentScores["TWO_OPEN"]) blockScore = currentScores["BLOCK_TWO_OPEN"];
+            else if (opponentPotentialScore >= currentScores["TWO_CLOSED"]) blockScore = currentScores["BLOCK_TWO_CLOSED"];
+
+            return playerScore + blockScore; // Final score = Offensive + Blocking necessity
+        }
+
+        // --- 5. EvaluateCell Function ---
+        /// <summary>
+        /// Calculates the total score for placing 'player's piece at (row, col)
+        /// by summing the scores from ScoreLine for all 4 directions.
+        /// </summary>
+        private int EvaluateCell(int[,] currentBoard, int row, int col, int player)
+        {
+            if (currentBoard[row, col] != EMPTY_CELL)
+            {
+                return int.MinValue; // Cell is already occupied, return lowest possible score
+            }
+
+            int totalScore = 0;
+            (int dr, int dc)[] directions = { (0, 1), (1, 0), (1, 1), (1, -1) };
+
+            // Tentatively place the player's piece for evaluation
+            currentBoard[row, col] = player;
+
+            // Calculate score contribution from each direction
+            foreach (var dir in directions)
+            {
+                // ScoreLine uses SCORE_AGGRESSIVE internally
+                totalScore += ScoreLine(currentBoard, row, col, dir.dr, dir.dc, player);
+            }
+
+            // IMPORTANT: Revert the board change after evaluation
+            currentBoard[row, col] = EMPTY_CELL;
+
+            // Optional: Add a small bonus for moves closer to the center
+            double centerBonus = (
+                (BOARD_SIZE / 2.0 - Math.Abs(row - (BOARD_SIZE - 1.0) / 2.0)) +
+                (BOARD_SIZE / 2.0 - Math.Abs(col - (BOARD_SIZE - 1.0) / 2.0))
+            );
+            totalScore += (int)(centerBonus * 0.5); // Apply a small weight
+
+            return totalScore;
+        }
+
+        // --- 6. GetPossibleMoves Function ---
+        /// <summary>
+        /// Gets a list of potential empty cells for the AI to consider.
+        /// Optimization: Only considers empty cells adjacent (within 'radius')
+        /// to existing pieces on the board.
+        /// </summary>
+        private List<Move> GetPossibleMoves(int[,] currentBoard)
+        {
+            var possibleMoves = new Dictionary<string, Move>(); // Use Dictionary to prevent duplicates easily
+            int radius = 2; // Search radius around existing pieces
+            bool hasStones = false;
+
+            for (int r = 0; r < BOARD_SIZE; r++)
+            {
+                for (int c = 0; c < BOARD_SIZE; c++)
+                {
+                    if (currentBoard[r, c] != EMPTY_CELL)
+                    {
+                        hasStones = true;
+                        // Check neighboring cells within the radius
+                        for (int i = -radius; i <= radius; i++)
+                        {
+                            for (int j = -radius; j <= radius; j++)
+                            {
+                                if (i == 0 && j == 0) continue; // Skip the cell itself
+
+                                int nr = r + i;
+                                int nc = c + j;
+                                string key = $"{nr}-{nc}";
+
+                                // Check boundaries and if the cell is empty and not already added
+                                if (nr >= 0 && nr < BOARD_SIZE && nc >= 0 && nc < BOARD_SIZE &&
+                                    currentBoard[nr, nc] == EMPTY_CELL && !possibleMoves.ContainsKey(key))
+                                {
+                                    possibleMoves.Add(key, new Move(nr, nc));
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Handle empty board case
+            if (!hasStones)
+            {
+                int center = BOARD_SIZE / 2; // Integer division is fine
+                if (currentBoard[center, center] == EMPTY_CELL)
+                {
+                    return new List<Move> { new Move(center, center) };
+                }
+            }
+
+            // Handle case where stones exist but no neighbors found (e.g., surrounded)
+            if (hasStones && possibleMoves.Count == 0)
+            {
+                Console.WriteLine("Warning: No moves near existing stones found! Searching for ANY empty cell.");
+                for (int r = 0; r < BOARD_SIZE; r++)
+                {
+                    for (int c = 0; c < BOARD_SIZE; c++)
+                    {
+                        if (currentBoard[r, c] == EMPTY_CELL)
+                        {
+                            return new List<Move> { new Move(r, c) }; // Return first empty cell found
+                        }
+                    }
+                }
+                return new List<Move>(); // Board is completely full
+            }
+
+            // Return the list of unique possible moves
+            return new List<Move>(possibleMoves.Values);
+        }
+
+
+        /// <summary>
+        /// Scans the board for critical opponent threats, specifically "Open Fours" (_OOOO_),
+        /// evaluates the two possible blocking moves for the AI, and returns the better one.
+        /// This is a high-priority check to prevent the opponent from creating an unstoppable win.
+        /// </summary>
+        /// <param name="currentBoard">The current state of the game board.</param>
+        /// <param name="player">The current AI player (who needs to block).</param>
+        /// <returns>The best Move to block an open four threat, or null if no such immediate threat exists.</returns>
+        private Move? FindAndEvaluateForcedBlock(int[,] currentBoard, int player)
+        {
+            int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
+            Move? bestBlockMoveOverall = null;     // The best blocking move found across all threats
+            int highestBlockScore = int.MinValue; // The score of the best blocking move found
+
+            // Define directions to check: Horizontal, Vertical, Diagonal \, Diagonal /
+            (int dr, int dc)[] directions = { (0, 1), (1, 0), (1, 1), (1, -1) };
+
+            // Iterate through each cell on the board as a potential starting point of a 6-cell window
+            for (int r = 0; r < BOARD_SIZE; r++)
+            {
+                for (int c = 0; c < BOARD_SIZE; c++)
+                {
+                    // Check each of the 4 directions starting from (r, c)
+                    foreach (var dir in directions)
+                    {
+                        int dr = dir.dr;
+                        int dc = dir.dc;
+
+                        // Calculate the coordinates of the end of the 6-cell window
+                        int endR = r + 5 * dr;
+                        int endC = c + 5 * dc;
+
+                        // Ensure the entire 6-cell window is within the board boundaries
+                        if (endR >= 0 && endR < BOARD_SIZE && endC >= 0 && endC < BOARD_SIZE)
+                        {
+                            // --- Check for the specific pattern: _ O O O O _ ---
+                            // Where _ is EMPTY_CELL and O is the opponent's piece
+                            if (currentBoard[r, c] == EMPTY_CELL &&                      // Start is empty
+                                currentBoard[r + dr, c + dc] == opponent &&            // Next 4 are opponent
+                                currentBoard[r + 2 * dr, c + 2 * dc] == opponent &&
+                                currentBoard[r + 3 * dr, c + 3 * dc] == opponent &&
+                                currentBoard[r + 4 * dr, c + 4 * dc] == opponent &&
+                                currentBoard[r + 5 * dr, c + 5 * dc] == EMPTY_CELL)    // End is empty
+                            {
+                                // --- Found an opponent's open-four threat! ---
+
+                                // Identify the two mandatory blocking positions
+                                Move blockPos1 = new Move(r, c);          // The starting empty cell
+                                Move blockPos2 = new Move(endR, endC);    // The ending empty cell
+
+                                // --- Evaluate the score if the AI blocks at each position ---
+                                // Use EvaluateCell to get the heuristic value of making that blocking move
+                                // (EvaluateCell considers both blocking this threat and any offensive potential gained)
+                                int scoreBlockPos1 = EvaluateCell(currentBoard, blockPos1.Row, blockPos1.Col, player);
+                                int scoreBlockPos2 = EvaluateCell(currentBoard, blockPos2.Row, blockPos2.Col, player);
+
+                                // --- Determine which blocking move is currently the best ---
+                                Move currentBestBlock;
+                                int currentBestScore;
+
+                                if (scoreBlockPos1 >= scoreBlockPos2) // Prefer the first block if scores are equal
+                                {
+                                    currentBestBlock = blockPos1;
+                                    currentBestScore = scoreBlockPos1;
+                                }
+                                else
+                                {
+                                    currentBestBlock = blockPos2;
+                                    currentBestScore = scoreBlockPos2;
+                                }
+
+                                // --- Update the overall best blocking move if this threat's block is better ---
+                                // This handles cases where there might be multiple open-four threats on the board;
+                                // the AI should choose the single blocking move that yields the highest score.
+                                if (currentBestScore > highestBlockScore)
+                                {
+                                    highestBlockScore = currentBestScore;
+                                    bestBlockMoveOverall = currentBestBlock;
+                                    // Console.WriteLine($"Debug: Found better forced block {bestBlockMoveOverall} score {highestBlockScore}"); // Optional Debugging
+                                }
+                            } // End if pattern matched
+                        } // End if window in bounds
+                    } // End foreach direction
+                } // End for c
+            } // End for r
+
+            // Return the best blocking move found for any open-four threat,
+            // or null if no such threats were detected.
+            return bestBlockMoveOverall;
+        }
+
+        // --- 8. FindBestMoveAggressive Function ---
+        /// <summary>
+        /// Finds the best move for the AI using the aggressive strategy.
+        /// Priorities: 1. Win immediately. 2. Block opponent's immediate win (FIVE). 3. Highest score from EvaluateCell.
+        /// </summary>
+        /// <param name="currentBoard">The current board state.</param>
+        /// <param name="player">The AI player.</param>
+        /// <returns>A nullable Move struct (Move?). Returns null if no move is possible.</returns>
+        public Move? FindBestMoveAggressive(int[,] currentBoard, int player)
+        {
+            int bestScore = int.MinValue; // Use MinValue for comparison
+            Move? bestMove = null; // Use nullable struct to indicate no move found yet
+            int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
+
+            List<Move> possibleMoves = GetPossibleMoves(currentBoard);
+
+            if (possibleMoves.Count == 0)
+            {
+                Console.Error.WriteLine("AI (Aggressive): No possible moves left!");
+                return null; // No move possible
+            }
+
+            // Handle first move: prioritize center if available
+            bool checkFirstMove = false;
+            if (checkFirstMove)
+            {
+                //int moveCountOnBoard = 0;
+                //for (int r = 0; r < BOARD_SIZE; ++r)
+                //    for (int c = 0; c < BOARD_SIZE; ++c)
+                //        if (currentBoard[r, c] != EMPTY_CELL)
+                //        {
+                //            moveCountOnBoard++;
+                //            break;
+                //        }
+
+                bool isEmptyBoard = IsEmptyBoard(currentBoard);
+                if (isEmptyBoard)
+                {
+                    int center = BOARD_SIZE / 2;
+                    foreach (var move in possibleMoves)
+                    {
+                        if (move.Row == center && move.Col == center)
+                        {
+                            Console.WriteLine($"AI (Aggressive): First move, playing center ({center}, {center})");
+                            return move;
+                        }
+                    }
+                    // If center not in reduced possible moves, but board is empty, take first possible
+                    if (possibleMoves.Count > 0)
+                    {
+                        Console.WriteLine($"AI (Aggressive): Center not available on empty board? Playing first possible.");
+                        return possibleMoves[0];
+                    }
+                }
+            }
+
+            // --- Check Priorities ---
+            // Create a temporary board copy for checks to avoid modifying the original
+            int[,] tempBoard = (int[,])currentBoard.Clone();
+
+            // Priority 1: Check if AI can win immediately
+            foreach (var move in possibleMoves)
+            {
+                tempBoard[move.Row, move.Col] = player;
+                if (CheckWin(move.Row, move.Col, player, tempBoard))
+                {
+                    // No need to revert tempBoard here as we are returning
+                    Console.WriteLine($"AI (Aggressive): Found winning move at {move}");
+                    return move;
+                }
+                tempBoard[move.Row, move.Col] = EMPTY_CELL; // Revert for next check
+            }
+
+            /*
+            // Priority 2: Check if opponent can win immediately and block it
+            Move? immediateBlock = null;
+            foreach (var move in possibleMoves)
+            {
+                tempBoard[move.Row, move.Col] = opponent;
+                if (CheckWin(move.Row, move.Col, opponent, tempBoard))
+                {
+                    // Found a move that blocks an immediate win
+                    Console.WriteLine($"AI (Aggressive): Found immediate block (FIVE) at {move}");
+                    immediateBlock = move;
+                    tempBoard[move.Row, move.Col] = EMPTY_CELL; // Revert before breaking/returning
+                    break; // Found the necessary block, no need to check further blocks
+                }
+                tempBoard[move.Row, move.Col] = EMPTY_CELL; // Revert for next check
+            }
+
+            // Return the blocking move immediately if found
+            if (immediateBlock.HasValue)
+            {
+                return immediateBlock;
+            }
+            */
+
+            // --- Priority 3 (NEW): Check for and execute forced blocks for opponent's Open Fours ---
+            Move? forcedBlock = FindAndEvaluateForcedBlock(currentBoard, player);
+            if (forcedBlock.HasValue)
+            {
+                Console.WriteLine($"AI (Aggressive): Executing forced block for opponent's open four at {forcedBlock.Value}");
+                return forcedBlock.Value; // Return this high-priority defensive move
+            }
+
+            // Priority 2: Block opponent's immediate win (FIVE)
+            int[,] tempBoardBlock = (int[,])currentBoard.Clone(); // Use temp board for checks
+            foreach (var move in possibleMoves)
+            {
+                tempBoardBlock[move.Row, move.Col] = opponent;
+                if (CheckWin(move.Row, move.Col, opponent, tempBoardBlock))
+                {
+                    Console.WriteLine($"AI (Aggressive): Found immediate block (FIVE) at {move}");
+                    return move; // Return immediately
+                }
+                tempBoardBlock[move.Row, move.Col] = EMPTY_CELL; // Revert
+            }
+
+
+
+            // Priority 4: Evaluate remaining moves using EvaluateCell (which uses Aggressive Scores)
+            // No separate check for blocking FOUR_OPEN for aggressive AI
+            foreach (var move in possibleMoves)
+            {
+                // Use the original board for evaluation, EvaluateCell handles temporary placement
+                int currentScore = EvaluateCell(currentBoard, move.Row, move.Col, player);
+
+                // Debugging: Log score for each possible move
+                // Console.WriteLine($"AI (Aggressive): Score for ({move.Row}, {move.Col}): {currentScore}");
+
+                // Update best move if current move has higher score
+                if (currentScore > bestScore)
+                {
+                    bestScore = currentScore;
+                    bestMove = move;
+                }
+                // Optional: Add randomness for moves with equal scores
+                else if (currentScore == bestScore)
+                {
+                    // Example: 30% chance to switch to the new move if scores are equal
+                    if (_random.NextDouble() < 0.3)
+                    {
+                        bestMove = move;
+                    }
+                }
+            }
+
+            // Fallback: If no move improved score (e.g., all moves have score MinValue or less)
+            if (!bestMove.HasValue && possibleMoves.Count > 0)
+            {
+                Console.WriteLine("Warning: AI (Aggressive): No best move evaluated, picking random possible one.");
+                // Pick a random move from the possible list
+                bestMove = possibleMoves[_random.Next(possibleMoves.Count)];
+            }
+
+            // Log the chosen move and its score
+            if (bestMove.HasValue)
+            {
+                string scoreString = (bestScore != int.MinValue) ? bestScore.ToString() : "N/A (Fallback)";
+                Console.WriteLine($"AI (Aggressive): Chosen move: {bestMove.Value} with score: {scoreString}");
+            }
+            else
+            {
+                // This should only happen if possibleMoves was initially empty
+                Console.Error.WriteLine("AI (Aggressive): Could not determine a best move.");
+            }
+
+            return bestMove; // Return the best move found (or null if none)
+        }
+
+        private bool IsEmptyBoard(int[,] currentBoard)
+        {
+            for (int r = 0; r < BOARD_SIZE; ++r) 
+                for (int c = 0; c < BOARD_SIZE; ++c) 
+                    if (currentBoard[r, c] != EMPTY_CELL)
+                        return false;
+            
+            return true;
+        }
+    }
+
+    // --- Example Usage (within your game logic) ---
+    /*
+    public class GameController
+    {
+        private int[,] gameBoard;
+        private CaroAI caroAI;
+        private int currentPlayer;
+        private bool isGameOver;
+
+        public GameController()
+        {
+            gameBoard = new int[CaroAI.BOARD_SIZE, CaroAI.BOARD_SIZE];
+            caroAI = new CaroAI();
+            InitializeGame();
+        }
+
+        void InitializeGame()
+        {
+            for (int i = 0; i < CaroAI.BOARD_SIZE; i++)
+                for (int j = 0; j < CaroAI.BOARD_SIZE; j++)
+                    gameBoard[i, j] = CaroAI.EMPTY_CELL;
+            currentPlayer = CaroAI.PLAYER_O; // Example: Human starts
+            isGameOver = false;
+            Console.WriteLine("Game Initialized. Player O's turn.");
+            // Update UI
+        }
+
+        // Called when a player (human or AI) makes a move
+        public bool MakeMove(int row, int col)
+        {
+            if (isGameOver || row < 0 || row >= CaroAI.BOARD_SIZE || col < 0 || col >= CaroAI.BOARD_SIZE || gameBoard[row, col] != CaroAI.EMPTY_CELL)
+            {
+                Console.WriteLine("Invalid move.");
+                return false;
+            }
+
+            gameBoard[row, col] = currentPlayer;
+            Console.WriteLine($"Player {currentPlayer} moved to ({row}, {col})");
+            // Update UI
+
+            if (caroAI.CheckWin(row, col, currentPlayer, gameBoard))
+            {
+                isGameOver = true;
+                Console.WriteLine($"Player {currentPlayer} wins!");
+                // Update UI for win
+                return true;
+            }
+
+            // Check for draw (simple count - better draw checks exist)
+            int moveCount = 0;
+             for(int r=0; r<CaroAI.BOARD_SIZE; ++r) for(int c=0; c<CaroAI.BOARD_SIZE; ++c) if(gameBoard[r,c]!=CaroAI.EMPTY_CELL) moveCount++;
+            if (moveCount == CaroAI.BOARD_SIZE * CaroAI.BOARD_SIZE) {
+                 isGameOver = true;
+                 Console.WriteLine("Game is a draw!");
+                 // Update UI for draw
+                 return true;
+            }
+
+
+            // Switch player
+            currentPlayer = (currentPlayer == CaroAI.PLAYER_X) ? CaroAI.PLAYER_O : CaroAI.PLAYER_X;
+            Console.WriteLine($"Next turn: Player {currentPlayer}");
+
+
+            // Trigger AI if it's its turn
+            if (!isGameOver && currentPlayer == CaroAI.PLAYER_X)
+            {
+                TriggerAIMoveAsync(); // Use async version
+            }
+             return true;
+        }
+
+        // Example of triggering AI move asynchronously
+        public async Task TriggerAIMoveAsync()
+        {
+            if (isGameOver || currentPlayer != CaroAI.PLAYER_X) return;
+
+            Console.WriteLine("AI (Aggressive) is thinking...");
+            var stopwatch = Stopwatch.StartNew();
+
+            // Use Task.Run to avoid blocking UI thread for potentially long calculations
+            Move? aiMove = await Task.Run(() => caroAI.FindBestMoveAggressive(gameBoard, CaroAI.PLAYER_X));
+
+            stopwatch.Stop();
+            Console.WriteLine($"AI calculation time: {stopwatch.Elapsed.TotalSeconds:F3} seconds");
+
+            if (aiMove.HasValue)
+            {
+               // IMPORTANT: Make the AI's move by calling MakeMove again
+               // This ensures win/draw checks and player switching happen correctly
+               MakeMove(aiMove.Value.Row, aiMove.Value.Col);
+            }
+            else
+            {
+                Console.Error.WriteLine("AI Error: Cannot find a move.");
+                // Handle error or maybe declare draw if AI has no moves?
+            }
+        }
+    }
+    */
+}
