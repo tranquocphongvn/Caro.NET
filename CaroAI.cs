@@ -1277,48 +1277,52 @@ namespace Caro.NET
         private bool BlockedBothByBoundaryOrOpponent(int[,] currentBoard, int row, int col, int dr, int dc, int player, int opponent)
         {
             // check blocked both side by Boundary or Opponent
-            int backward_r = row - dr; int backward_c = row - dc;
-            int count_backward = 0;
-            int count_forward = 0;
-            bool bound_backward = (backward_r < 0 || backward_c < 0); // left boundary is out of the board, don't count
-            bool bound_forward = (backward_r >= BOARD_SIZE || backward_c >= BOARD_SIZE); // right boundary is out of the board, don't count
-                                                                                 // Count backwards
-            while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && (count_backward + count_forward <= WIN_LENGTH + 1) && (!bound_backward || !bound_forward))
-            {
-                if (currentBoard[backward_r, backward_c] == opponent)
-                    bound_backward = true;
 
-                int temp_count_forward = count_forward;
-                int forward_r = row + dr; int forward_c = row + dc;
-                while (forward_r >= 0 && forward_r < BOARD_SIZE && forward_c >= 0 && forward_c < BOARD_SIZE && (temp_count_forward <= WIN_LENGTH + 1) && !bound_forward)
+            // Count backwards
+            int backward_r = row - dr; int backward_c = row - dc;
+            int count_backward = 1; // count from 1
+            bool bound_backward = false; //(backward_r < 0 || backward_c < 0); // left boundary is out of the board, don't count
+            while (backward_r >= -WIN_LENGTH && backward_r < BOARD_SIZE && backward_c >= -WIN_LENGTH && backward_c < BOARD_SIZE && (count_backward <= WIN_LENGTH) && !bound_backward)
+            {
+                bound_backward = bound_backward || (backward_r < 0 || backward_c < 0); // left boundary is out of the board, don't count
+                if (bound_backward || currentBoard[backward_r, backward_c] == opponent)
                 {
-                    if (bound_forward)
-                        break;
-                    if (currentBoard[forward_r, forward_c] == opponent)
-                    {
-                        count_forward = temp_count_forward;
-                        bound_forward = true;
-                        break;
-                    }
-                    temp_count_forward++;
-                    forward_r += dr; forward_c += dc;
+                    bound_backward = true;
+                    break;
                 }
+
                 count_backward++;
                 backward_r -= dr; backward_c -= dc;
             }
+
+            if (!bound_backward)
+                return false;
+
+            // Count forwards
+            int forward_r = row + dr; int forward_c = row + dc;
+            int count_forward = 1; // count from 1
+            bool bound_forward = false; // (backward_r >= BOARD_SIZE || backward_c >= BOARD_SIZE); // right boundary is out of the board, don't count
+            while (forward_r >= 0 && forward_r < BOARD_SIZE && forward_c >= 0 && forward_c < BOARD_SIZE && (count_forward + count_forward <= WIN_LENGTH) && (!bound_backward || !bound_forward))
+            {
+                bound_forward = bound_forward || (forward_r >= BOARD_SIZE || forward_c >= BOARD_SIZE); // right boundary is out of the board, don't count
+                if (bound_forward || currentBoard[forward_r, forward_c] == opponent)
+                {
+                    bound_forward = true;
+                    break;
+                }
+
+                count_forward++;
+                forward_r += dr; forward_c += dc;
+            }
+
             // blocked both side by Boundary or Opponent
-            if (bound_backward && bound_forward && count_backward + count_forward <= WIN_LENGTH + 1)
+            if (bound_backward && bound_forward && (count_backward + count_forward <= WIN_LENGTH)) // WIN_LENGTH (not WIN_LENGTH + 1) becasue dont count itself
+            {
+                //Debug.WriteLine("BlockedBothByBoundaryOrOpponent... Row:{0}, Column:{1}, dr:{2}, dc:{3}, count_backward:{6}, count_forward:{7}, player:{4}, opponent:{5}", row, col, dr, dc, player, opponent, count_backward, count_forward);
                 return true;
+            }
 
             return false;
-
-            //backward_r = row + dr; backward_c = row + dc;
-            //count_backward = 0;
-            //while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && count_backward <= WIN_LENGTH)
-            //{
-            //    count_backward++;
-            //    backward_r += dr; backward_c += dc;
-            //}
         }
 
 
@@ -1400,7 +1404,7 @@ namespace Caro.NET
             }
 
             bool showEvaluateScore = false;
-            if ((row == 10 && col == 12) || (row == 10 && col == 10) && dc == 1)
+            if ((row == 4 && col == 4) || (row == 10 && col == 10) && dc == 1)
             {
                 Debug.WriteLine("Warning: ScoreLine_V3_Final: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, col);
                 showEvaluateScore = true;
@@ -2093,12 +2097,12 @@ namespace Caro.NET
             {
                 // Use the latest EvaluateCell (V3_Final)
 
-                //bool showEvaluateScore = false;
-                //if ((move.Row == 9 && move.Col == 10) || (move.Row == 10 && move.Col == 10))
-                //{
-                //    Debug.WriteLine("Warning: AI V6 Lookahead: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", move.Row, move.Col);
-                //    showEvaluateScore = true;
-                //}
+                bool showEvaluateScore = false;
+                if ((move.Row == 4 && move.Col == 4) || (move.Row == 10 && move.Col == 10))
+                {
+                    Debug.WriteLine("Warning: AI V6 Lookahead: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", move.Row, move.Col);
+                    showEvaluateScore = true;
+                }
 
                 int currentScore = EvaluateCell_V3_Final(currentBoard, move.Row, move.Col, player);
                 //if (showEvaluateScore)

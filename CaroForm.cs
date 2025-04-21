@@ -319,7 +319,7 @@ namespace Caro.NET
                         // refresh Old Move Cell
                         if (LatestMoved.EvalValue > Utils.CARO_EVAL_UNDEF)
                         {
-                            Thread.Sleep(500);
+                            Thread.Sleep(200);
                             DrawMove(g, LatestMoved, true, false);
                         }
 
@@ -568,6 +568,7 @@ namespace Caro.NET
                     PCMoveTask();
                     Thread.Sleep(100);
                     System.Windows.Forms.Application.DoEvents();
+                    CheckWinLatestMove();
                 } while (CaroGameStatus == GameStatus.Playing && LatestMoved.EvalValue > Utils.CARO_EVAL_UNDEF);
 
 
