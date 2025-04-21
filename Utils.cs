@@ -8,10 +8,10 @@ namespace Caro.NET
 {
     public static class Utils
     {
-        public const int MAX_ROWS = 36;
-        public const int MAX_COLUMNS = 36;
-        public const int CELL_SIZE = 35;
-        public const int CELL_PADDING = 7;
+        public const int MAX_ROWS = 25;
+        public const int MAX_COLUMNS = 25;
+        public const int CELL_SIZE = 50;
+        public const int CELL_PADDING = 10;
         public const int BOARD_LEFT = 10;
         public const int BOARD_TOP = 10;
 

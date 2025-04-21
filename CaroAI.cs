@@ -1269,6 +1269,17 @@ namespace Caro.NET
         } // End of FindBestMoveAggressive_V3_Final
         */
 
+
+        private bool IsOutOfCaroBoard(int row, int column)
+        {
+            return (row < 0 || column < 0 || row >= BOARD_SIZE || column >= BOARD_SIZE);
+        }
+
+        private bool IsInCaroBoard(int row, int column)
+        {
+            return (row >= 0 && column >= 0 && row < BOARD_SIZE && column < BOARD_SIZE);
+        }
+
         // --- Check Block both side by Boundary or Opponent ---
         /// <summary>
         /// Calculates score for a line. Uses SCORE_AGGRESSIVE_V2.
@@ -1278,45 +1289,53 @@ namespace Caro.NET
         {
             // check blocked both side by Boundary or Opponent
 
-            // Count backwards
-            int backward_r = row - dr; int backward_c = row - dc;
-            int count_backward = 1; // count from 1
-            bool bound_backward = false; //(backward_r < 0 || backward_c < 0); // left boundary is out of the board, don't count
-            while (backward_r >= -WIN_LENGTH && backward_r < BOARD_SIZE && backward_c >= -WIN_LENGTH && backward_c < BOARD_SIZE && (count_backward <= WIN_LENGTH) && !bound_backward)
+            if ((row == 5 && col == 2 && dr == 1))
             {
-                bound_backward = bound_backward || (backward_r < 0 || backward_c < 0); // left boundary is out of the board, don't count
-                if (bound_backward || currentBoard[backward_r, backward_c] == opponent)
-                {
-                    bound_backward = true;
-                    break;
-                }
-
-                count_backward++;
-                backward_r -= dr; backward_c -= dc;
+                Debug.WriteLine("Warning: BlockedBothByBoundaryOrOpponent: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, col);
             }
 
-            if (!bound_backward)
-                return false;
+            int count = 0; // max = WIN_LENGTH
 
-            // Count forwards
-            int forward_r = row + dr; int forward_c = row + dc;
-            int count_forward = 1; // count from 1
-            bool bound_forward = false; // (backward_r >= BOARD_SIZE || backward_c >= BOARD_SIZE); // right boundary is out of the board, don't count
-            while (forward_r >= 0 && forward_r < BOARD_SIZE && forward_c >= 0 && forward_c < BOARD_SIZE && (count_forward + count_forward <= WIN_LENGTH) && (!bound_backward || !bound_forward))
+            int backward_r = row - dr; int backward_c = col - dc;
+            int count_backward = 1; // start from 1
+            bool bound_backward = IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't count
+
+            int forward_r = row + dr; int forward_c = col + dc;
+            int count_forward = 1; // start from 1
+            bool bound_forward = IsOutOfCaroBoard(forward_r, forward_c); // forward boundary is out of the board, don't count
+
+            // Count backwards & forwards
+            while (count <= WIN_LENGTH && (!bound_backward || !bound_forward))
             {
-                bound_forward = bound_forward || (forward_r >= BOARD_SIZE || forward_c >= BOARD_SIZE); // right boundary is out of the board, don't count
-                if (bound_forward || currentBoard[forward_r, forward_c] == opponent)
+                // Check backwards
+                bound_backward = bound_backward || IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't count
+                if (bound_backward || currentBoard[backward_r, backward_c] == opponent) // blocked by Boundary or Opponent, dont need check cell value
+                    bound_backward = true; // dont need check backward anymore
+                else 
                 {
-                    bound_forward = true;
-                    break;
+                    // increase the counter for backward
+                    count_backward++;
+                    backward_r -= dr; backward_c -= dc;
                 }
 
-                count_forward++;
-                forward_r += dr; forward_c += dc;
+
+                // Check forwards
+                bound_forward = bound_forward || IsOutOfCaroBoard(forward_r, forward_c); ; // forward boundary is out of the board, don't count
+                if (bound_forward || currentBoard[forward_r, forward_c] == opponent) // blocked by Boundary or Opponent, dont need check cell value
+                    bound_forward = true; // dont need check forward anymore
+                else
+                {
+                    // increase the counter for forward
+                    count_forward++;
+                    forward_r += dr; forward_c += dc;
+                }
+
+                // increase the counter
+                count++;
             }
 
             // blocked both side by Boundary or Opponent
-            if (bound_backward && bound_forward && (count_backward + count_forward <= WIN_LENGTH)) // WIN_LENGTH (not WIN_LENGTH + 1) becasue dont count itself
+            if (bound_backward && bound_forward && (count_backward + count_forward <= WIN_LENGTH + 1)) // WIN_LENGTH + 1, because boundary counts start from 1;
             {
                 //Debug.WriteLine("BlockedBothByBoundaryOrOpponent... Row:{0}, Column:{1}, dr:{2}, dc:{3}, count_backward:{6}, count_forward:{7}, player:{4}, opponent:{5}", row, col, dr, dc, player, opponent, count_backward, count_forward);
                 return true;
@@ -1403,37 +1422,28 @@ namespace Caro.NET
                 return 0;
             }
 
-            bool showEvaluateScore = false;
-            if ((row == 4 && col == 4) || (row == 10 && col == 10) && dc == 1)
-            {
-                Debug.WriteLine("Warning: ScoreLine_V3_Final: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, col);
-                showEvaluateScore = true;
-            }
+            bool showEvaluateScore = StopHereForDebugging(row, col, player);
 
-            // 1. Calculate offensive score (for player)
             int playerScore = 0;
+            int neutralizeBonus = 0;
             if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, player, opponent))
-                playerScore = CountAndScoreSequence(row, col, player);
-
-            if (showEvaluateScore)
             {
-                Debug.WriteLine("Warning: ScoreLine_V3_Final: Row: {0}, Column: {1}. Evaluate Score: {2}", row, col, playerScore);
-                showEvaluateScore = false;
-            }
+                // 1. Calculate offensive score (for player)
+                playerScore = CountAndScoreSequence(row, col, player);
+                // Check for immediate player win - return highest score if found
+                if (playerScore >= currentScores["FIVE"])
+                    return currentScores["FIVE"];
 
-            // Check for immediate player win - return highest score if found
-            if (playerScore >= currentScores["FIVE"]) 
-                return currentScores["FIVE"];
+                // 3. Calculate Neutralize Bonus (using the corrected logic)
+                neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
+            }
 
             // 2. Calculate opponent's potential score if they played here
             currentBoard[row, col] = opponent;
-            int opponentPotentialScore = CountAndScoreSequence(row, col, opponent);
+            int opponentPotentialScore = 0;
+            if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, opponent, player))
+                opponentPotentialScore = CountAndScoreSequence(row, col, opponent);
             currentBoard[row, col] = player; // Restore player's piece
-
-            // 3. Calculate Neutralize Bonus (using the corrected logic)
-            int neutralizeBonus = 0;
-            if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, player, opponent))
-                neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
 
             // 4. Calculate Block Score (based on opponent's potential, EXCLUDING FIVE)
             int blockScore = 0;
@@ -1514,8 +1524,6 @@ namespace Caro.NET
         /// </summary>
         private int EvaluateCell_V3_Final(int[,] currentBoard, int row, int col, int player)
         {
-
-
             if (currentBoard[row, col] != EMPTY_CELL) return int.MinValue;
             int totalScore = 0;
             (int dr, int dc)[] directions = { (0, 1), (1, 0), (1, 1), (1, -1) };
@@ -1676,7 +1684,7 @@ namespace Caro.NET
 
             if (len_before >= 2 && len_before <= 4)
             {
-                bool start_is_blocked = r_check < 0 || r_check >= BOARD_SIZE || c_check < 0 || c_check >= BOARD_SIZE || board[r_check, c_check] == player;
+                bool start_is_blocked = IsOutOfCaroBoard(r_check, c_check) || board[r_check, c_check] == player;
                 if (start_is_blocked)
                 {
                     if (len_before == 4) 
@@ -1695,7 +1703,7 @@ namespace Caro.NET
 
             if (len_after >= 2 && len_after <= 4)
             {
-                bool end_is_blocked = r_check < 0 || r_check >= BOARD_SIZE || c_check < 0 || c_check >= BOARD_SIZE || board[r_check, c_check] == player;
+                bool end_is_blocked = IsOutOfCaroBoard(r_check, c_check) || board[r_check, c_check] == player;
                 if (end_is_blocked)
                 {
                     if (len_after == 4) 
@@ -1946,6 +1954,20 @@ namespace Caro.NET
         } // End of FindBestMoveAggressive_V5_Final
         */
 
+        private bool StopHereForDebugging(int row, int column, int player)
+        {
+            if ((row == 5 && column == 2))
+            {
+                Debug.WriteLine("Warning: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, column);
+                return true;
+            }
+            return false;
+        }
+
+        private bool StopHereForDebugging(Move move, int player)
+        {
+            return StopHereForDebugging(move.Row, move.Col, player);
+        }
 
         /// <summary>
         /// Finds the best move using Aggressive V2 scoring and evaluation.
@@ -1983,6 +2005,9 @@ namespace Caro.NET
             foreach (var move in possibleMoves)
             {
                 checkBoard[move.Row, move.Col] = opponent;
+
+                // StopHereForDebugging(move, opponent);
+
                 if (CheckWin(move.Row, move.Col, opponent, checkBoard))
                 {
                     criticalBlockingMoves.Add(move);
@@ -2009,6 +2034,8 @@ namespace Caro.NET
                     {
                         // 1. Simulate AI making the blocking move
                         lookaheadBoard[blockingMove.Row, blockingMove.Col] = player;
+
+                        // StopHereForDebugging(blockingMove, player);
 
                         // 2. Check if opponent has ANY winning move on their NEXT turn
                         bool opponentWinsNext = false;
@@ -2095,15 +2122,9 @@ namespace Caro.NET
             Move? bestHeuristicMove = null;
             foreach (var move in possibleMoves)
             {
+                bool showEvaluateScore = StopHereForDebugging(move, player);
+
                 // Use the latest EvaluateCell (V3_Final)
-
-                bool showEvaluateScore = false;
-                if ((move.Row == 4 && move.Col == 4) || (move.Row == 10 && move.Col == 10))
-                {
-                    Debug.WriteLine("Warning: AI V6 Lookahead: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", move.Row, move.Col);
-                    showEvaluateScore = true;
-                }
-
                 int currentScore = EvaluateCell_V3_Final(currentBoard, move.Row, move.Col, player);
                 //if (showEvaluateScore)
                 //{
