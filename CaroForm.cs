@@ -391,14 +391,23 @@ namespace Caro.NET
                 return;
             }
 
-            CaroMove? caroMove = GetCaroMoveFromCursor(true);
-
-            if (CaroGameStatus != GameStatus.Over && (radPCvsHuman.Checked || radHumanPC.Checked) && ManualMove(caroMove))
+            if (!radPCvsPC.Checked)
             {
-                PCMoveTask();
-                CheckWinLatestMove();
+                CaroMove? caroMove = GetCaroMoveFromCursor(true);
+                if (CaroGameStatus != GameStatus.Over && ManualMove(caroMove))
+                {
+                    if (radPCvsHuman.Checked || radHumanPC.Checked)
+                    {
+                        PCMoveTask();
+                    }
+                    else if (radHuman.Checked) 
+                    {
+                        caroMove = GetCaroMoveFromCursor(true);
+                        ManualMove(caroMove);
+                    }
+                    CheckWinLatestMove();
+                }
             }
-
             IsWaiting = false;
         }
 

@@ -137,7 +137,7 @@ namespace Caro.NET
             return false; // No winning line found
         }
 
-
+        /*
         // --- 4. ScoreLine Function (Version 2 - Includes Neutralize Bonus) ---
         /// <summary>
         /// Calculates the score for a single line passing through the cell (row, col)
@@ -161,25 +161,26 @@ namespace Caro.NET
                 bool endBlockedByOpponent = false;
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
 
+
                 // Count backwards
-                int temp_r = r - dr; int temp_c = c - dc;
-                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p)
+                int backward_r = r - dr; int backward_c = c - dc;
+                while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p)
                 {
-                    consecutive++; temp_r -= dr; temp_c -= dc;
+                    consecutive++; backward_r -= dr; backward_c -= dc;
                 }
-                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) {/* Boundary */}
-                else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; }
-                else if (currentBoard[temp_r, temp_c] == otherPlayer) { startBlockedByOpponent = true; }
+                if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) {/* Boundary }
+                else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) { openEnds++; }
+                else if (currentBoard[backward_r, backward_c] == otherPlayer) { startBlockedByOpponent = true; }
 
                 // Count forwards
-                temp_r = r + dr; temp_c = c + dc;
-                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p)
+                backward_r = r + dr; backward_c = c + dc;
+                while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p)
                 {
-                    consecutive++; temp_r += dr; temp_c += dc;
+                    consecutive++; backward_r += dr; backward_c += dc;
                 }
-                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) {/* Boundary */}
-                else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; }
-                else if (currentBoard[temp_r, temp_c] == otherPlayer) { endBlockedByOpponent = true; }
+                if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) {/* Boundary }
+                else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) { openEnds++; }
+                else if (currentBoard[backward_r, backward_c] == otherPlayer) { endBlockedByOpponent = true; }
 
                 consecutive++; // Count the piece at (r, c)
 
@@ -319,8 +320,9 @@ namespace Caro.NET
             // The NEUTRALIZE bonus will significantly boost the score of moves like the outer block in X_OOOOX
             return playerScore + blockScore + neutralizeBonus;
         } // End of scoreLine_V2
+        */
 
-
+        /*
         // --- 5. Updated EvaluateCell Function ---
         /// <summary>
         /// Calculates the total score for placing 'player's piece at (row, col).
@@ -358,6 +360,7 @@ namespace Caro.NET
 
             return totalScore;
         }
+        */
 
 
         // --- 6. GetPossibleMoves function remains the same ---
@@ -405,7 +408,7 @@ namespace Caro.NET
             return new List<Move>(possibleMoves.Values);
         }
 
-
+        /*
         // --- 7. Updated findBestMoveAggressive function ---
         /// <summary>
         /// Finds the best move for the AI using the UPDATED evaluation function (EvaluateCell_V2).
@@ -525,8 +528,9 @@ namespace Caro.NET
             return bestMove; // Return the best move found (or null if none)
 
         } // End of findBestMoveAggressive_V2
+        */
 
-
+        /*
         /// <summary>
         /// Finds the best move using Aggressive V2 scoring.
         /// **REVISED LOGIC:** If multiple moves block an immediate opponent win,
@@ -691,10 +695,11 @@ namespace Caro.NET
             return bestHeuristicMove;
 
         } // End of FindBestMoveAggressive_V3
+        */
 
 
 
-
+        /*
         // --- Use SCORE_AGGRESSIVE_V2 dictionary as defined before ---
         // Including NEUTRALIZE_FOUR_BONUS and NEUTRALIZE_THREE_BONUS
 
@@ -715,12 +720,12 @@ namespace Caro.NET
                 // ... (Exact same implementation as provided previously) ...
                 int consecutive = 0; int openEnds = 0; bool startBlockedByOpponent = false; bool endBlockedByOpponent = false;
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
-                int temp_r = r - dr; int temp_c = c - dc;
-                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) { consecutive++; temp_r -= dr; temp_c -= dc; }
-                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[temp_r, temp_c] == otherPlayer) { startBlockedByOpponent = true; }
-                temp_r = r + dr; temp_c = c + dc;
-                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) { consecutive++; temp_r += dr; temp_c += dc; }
-                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[temp_r, temp_c] == otherPlayer) { endBlockedByOpponent = true; }
+                int backward_r = r - dr; int backward_c = c - dc;
+                while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p) { consecutive++; backward_r -= dr; backward_c -= dc; }
+                if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) { } else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[backward_r, backward_c] == otherPlayer) { startBlockedByOpponent = true; }
+                backward_r = r + dr; backward_c = c + dc;
+                while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p) { consecutive++; backward_r += dr; backward_c += dc; }
+                if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) { } else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[backward_r, backward_c] == otherPlayer) { endBlockedByOpponent = true; }
                 consecutive++;
                 if (consecutive >= WIN_LENGTH) { return (consecutive == WIN_LENGTH && !(startBlockedByOpponent && endBlockedByOpponent)) ? currentScores["FIVE"] : 0; }
                 else if (consecutive == 4) { return (openEnds == 2) ? currentScores["FOUR_OPEN"] : ((openEnds == 1) ? currentScores["FOUR_CLOSED"] : 0); }
@@ -835,8 +840,9 @@ namespace Caro.NET
             // Final score = Offensive Score + Single-End Block Score + Double-Block Bonus
             return playerScore + blockScore + neutralizeBonus;
         } // End of scoreLine_V2_Fixed
+        */
 
-
+        /*
         // --- Update EvaluateCell to use the fixed scoreLine ---
         /// <summary>
         /// Calculates the total score for placing 'player's piece at (row, col).
@@ -871,8 +877,9 @@ namespace Caro.NET
 
             return totalScore;
         }
+        */
 
-
+        /*
         // --- Update findBestMove to use the fixed EvaluateCell ---
         /// <summary>
         /// Finds the best move using Aggressive V2 scoring and the FIXED evaluation.
@@ -884,7 +891,7 @@ namespace Caro.NET
             var _random = new Random(); // Local random instance
 
             List<Move> possibleMoves = GetPossibleMoves(currentBoard);
-            if (possibleMoves.Count == 0) { /* ... no moves ... */ return null; }
+            if (possibleMoves.Count == 0) { /* ... no moves ... * return null; }
             // ... (Handle first move) ...
 
             int[,] tempBoard = (int[,])currentBoard.Clone(); // Clone for win/loss checks
@@ -893,7 +900,7 @@ namespace Caro.NET
             foreach (var move in possibleMoves)
             {
                 tempBoard[move.Row, move.Col] = player;
-                if (CheckWin(move.Row, move.Col, player, tempBoard)) { /*...*/ return move; }
+                if (CheckWin(move.Row, move.Col, player, tempBoard)) { /*... return move; }
                 tempBoard[move.Row, move.Col] = EMPTY_CELL;
             }
 
@@ -912,7 +919,7 @@ namespace Caro.NET
             // Decision based on Critical Blocking Moves
             if (criticalBlockingMoves.Count > 0)
             {
-                if (criticalBlockingMoves.Count == 1) { /*...*/ return criticalBlockingMoves[0]; }
+                if (criticalBlockingMoves.Count == 1) { /*... return criticalBlockingMoves[0]; }
                 else
                 {
                     // Evaluate ONLY these critical blocking moves using the FIXED evaluation
@@ -933,8 +940,8 @@ namespace Caro.NET
                             bestBlockMove = blockingMove;
                         }
                     }
-                    if (bestBlockMove.HasValue) { /*...*/ return bestBlockMove.Value; }
-                    else { /*...*/ return criticalBlockingMoves[0]; } // Fallback
+                    if (bestBlockMove.HasValue) { /*... return bestBlockMove.Value; }
+                    else { /*... return criticalBlockingMoves[0]; } // Fallback
                 }
             }
 
@@ -976,11 +983,11 @@ namespace Caro.NET
         // Include other necessary methods here:
         // CheckWin(...)
         // GetPossibleMoves(...)
+        */
 
 
-
+        /*
         // --- Use SCORE_AGGRESSIVE_V2 dictionary as defined before ---
-
         /// <summary>
         /// Calculates the score for a single line passing through the cell (row, col)
         /// where 'player' intends to place a piece. Uses SCORE_AGGRESSIVE_V2.
@@ -998,18 +1005,63 @@ namespace Caro.NET
                 // ... (Exact same implementation as provided previously) ...
                 int consecutive = 0; int openEnds = 0; bool startBlockedByOpponent = false; bool endBlockedByOpponent = false;
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
-                int temp_r = r - dr; int temp_c = c - dc;
-                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) { consecutive++; temp_r -= dr; temp_c -= dc; }
-                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[temp_r, temp_c] == otherPlayer) { startBlockedByOpponent = true; }
-                temp_r = r + dr; temp_c = c + dc;
-                while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) { consecutive++; temp_r += dr; temp_c += dc; }
-                if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[temp_r, temp_c] == otherPlayer) { endBlockedByOpponent = true; }
+                int backward_r = r - dr; int backward_c = c - dc;
+
+                // check blocked both by Boundary or Opponent
+
+                // Count backwards
+                while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p) 
+                { 
+                    consecutive++; 
+                    backward_r -= dr; backward_c -= dc; 
+                }
+                if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) { } 
+                else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) 
+                { 
+                    openEnds++; 
+                } else if (currentBoard[backward_r, backward_c] == otherPlayer) 
+                { 
+                    startBlockedByOpponent = true;
+                }
+                
+                // Count forwards
+                backward_r = r + dr; backward_c = c + dc;
+                while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p) 
+                { 
+                    consecutive++; 
+                    backward_r += dr; backward_c += dc; 
+                }
+                if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) { } 
+                else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) 
+                { 
+                    openEnds++; 
+                } 
+                else if (currentBoard[backward_r, backward_c] == otherPlayer) 
+                { 
+                    endBlockedByOpponent = true;
+                }
                 consecutive++;
-                if (consecutive >= WIN_LENGTH) { return (consecutive == WIN_LENGTH && !(startBlockedByOpponent && endBlockedByOpponent)) ? currentScores["FIVE"] : 0; }
-                else if (consecutive == 4) { return (openEnds == 2) ? currentScores["FOUR_OPEN"] : ((openEnds == 1) ? currentScores["FOUR_CLOSED"] : 0); }
-                else if (consecutive == 3) { return (openEnds == 2) ? currentScores["THREE_OPEN"] : ((openEnds == 1) ? currentScores["THREE_CLOSED"] : 0); }
-                else if (consecutive == 2) { return (openEnds == 2) ? currentScores["TWO_OPEN"] : ((openEnds == 1) ? currentScores["TWO_CLOSED"] : 0); }
-                else if (consecutive == 1) { return (openEnds == 2) ? currentScores["ONE_OPEN"] : ((openEnds == 1) ? currentScores["ONE_CLOSED"] : 0); }
+
+                if (consecutive >= WIN_LENGTH) 
+                { 
+                    return (consecutive == WIN_LENGTH && !(startBlockedByOpponent && endBlockedByOpponent)) ? currentScores["FIVE"] : 0; 
+                }
+                else if (consecutive == 4) 
+                { 
+                    return (openEnds == 2) ? currentScores["FOUR_OPEN"] : ((openEnds == 1) ? currentScores["FOUR_CLOSED"] : 0); 
+                }
+                else if (consecutive == 3) 
+                { 
+                    return (openEnds == 2) ? currentScores["THREE_OPEN"] : ((openEnds == 1) ? currentScores["THREE_CLOSED"] : 0); 
+                }
+                else if (consecutive == 2) 
+                { 
+                    return (openEnds == 2) ? currentScores["TWO_OPEN"] : ((openEnds == 1) ? currentScores["TWO_CLOSED"] : 0); 
+                }
+                else if (consecutive == 1) 
+                { 
+                    return (openEnds == 2) ? currentScores["ONE_OPEN"] : ((openEnds == 1) ? currentScores["ONE_CLOSED"] : 0); 
+                }
                 return 0;
             }
             // === End of Helper Function ===
@@ -1090,7 +1142,9 @@ namespace Caro.NET
             // Final score = Offensive Score + Single-End Block Score + Double-Block Bonus
             return playerScore + blockScore + neutralizeBonus;
         } // End of scoreLine_V2_Final
+        */
 
+        /*
         // --- Update EvaluateCell to use the FINAL scoreLine ---
         private int EvaluateCell_V2_Final(int[,] currentBoard, int row, int col, int player)
         {
@@ -1109,7 +1163,9 @@ namespace Caro.NET
             totalScore += (int)(centerBonus * 0.5);
             return totalScore;
         }
+        */
 
+        /*
         // Include other necessary methods: CheckWin, GetPossibleMoves
 
         // --- Update findBestMove to use the FINAL EvaluateCell ---
@@ -1123,7 +1179,7 @@ namespace Caro.NET
             var _random = new Random(); // Local random instance
 
             List<Move> possibleMoves = GetPossibleMoves(currentBoard);
-            if (possibleMoves.Count == 0) { /* ... no moves ... */ return null; }
+            if (possibleMoves.Count == 0) { /* ... no moves ...  return null; }
             // ... (Handle first move) ...
 
             int[,] tempBoard = (int[,])currentBoard.Clone(); // Clone for win/loss checks
@@ -1132,7 +1188,7 @@ namespace Caro.NET
             foreach (var move in possibleMoves)
             {
                 tempBoard[move.Row, move.Col] = player;
-                if (CheckWin(move.Row, move.Col, player, tempBoard)) { /*...*/ return move; }
+                if (CheckWin(move.Row, move.Col, player, tempBoard)) { /*... return move; }
                 tempBoard[move.Row, move.Col] = EMPTY_CELL;
             }
 
@@ -1151,7 +1207,7 @@ namespace Caro.NET
             // Decision based on Critical Blocking Moves
             if (criticalBlockingMoves.Count > 0)
             {
-                if (criticalBlockingMoves.Count == 1) { /*...*/ return criticalBlockingMoves[0]; }
+                if (criticalBlockingMoves.Count == 1) { /*... return criticalBlockingMoves[0]; }
                 else
                 {
                     // Evaluate ONLY these critical blocking moves using the FINAL evaluation
@@ -1172,8 +1228,8 @@ namespace Caro.NET
                             bestBlockMove = blockingMove;
                         }
                     }
-                    if (bestBlockMove.HasValue) { /*...*/ return bestBlockMove.Value; }
-                    else { /*...*/ return criticalBlockingMoves[0]; } // Fallback
+                    if (bestBlockMove.HasValue) { /*...* return bestBlockMove.Value; }
+                    else { /*...* return criticalBlockingMoves[0]; } // Fallback
                 }
             }
 
@@ -1211,6 +1267,59 @@ namespace Caro.NET
             return bestHeuristicMove;
 
         } // End of FindBestMoveAggressive_V3_Final
+        */
+
+        // --- Check Block both side by Boundary or Opponent ---
+        /// <summary>
+        /// Calculates score for a line. Uses SCORE_AGGRESSIVE_V2.
+        /// Check Block both side by Boundary or Opponent
+        /// </summary>
+        private bool BlockedBothByBoundaryOrOpponent(int[,] currentBoard, int row, int col, int dr, int dc, int player, int opponent)
+        {
+            // check blocked both side by Boundary or Opponent
+            int backward_r = row - dr; int backward_c = row - dc;
+            int count_backward = 0;
+            int count_forward = 0;
+            bool bound_backward = (backward_r < 0 || backward_c < 0); // left boundary is out of the board, don't count
+            bool bound_forward = (backward_r >= BOARD_SIZE || backward_c >= BOARD_SIZE); // right boundary is out of the board, don't count
+                                                                                 // Count backwards
+            while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && (count_backward + count_forward <= WIN_LENGTH + 1) && (!bound_backward || !bound_forward))
+            {
+                if (currentBoard[backward_r, backward_c] == opponent)
+                    bound_backward = true;
+
+                int temp_count_forward = count_forward;
+                int forward_r = row + dr; int forward_c = row + dc;
+                while (forward_r >= 0 && forward_r < BOARD_SIZE && forward_c >= 0 && forward_c < BOARD_SIZE && (temp_count_forward <= WIN_LENGTH + 1) && !bound_forward)
+                {
+                    if (bound_forward)
+                        break;
+                    if (currentBoard[forward_r, forward_c] == opponent)
+                    {
+                        count_forward = temp_count_forward;
+                        bound_forward = true;
+                        break;
+                    }
+                    temp_count_forward++;
+                    forward_r += dr; forward_c += dc;
+                }
+                count_backward++;
+                backward_r -= dr; backward_c -= dc;
+            }
+            // blocked both side by Boundary or Opponent
+            if (bound_backward && bound_forward && count_backward + count_forward <= WIN_LENGTH + 1)
+                return true;
+
+            return false;
+
+            //backward_r = row + dr; backward_c = row + dc;
+            //count_backward = 0;
+            //while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && count_backward <= WIN_LENGTH)
+            //{
+            //    count_backward++;
+            //    backward_r += dr; backward_c += dc;
+            //}
+        }
 
 
         // --- ScoreLine V3 (No Early BLOCK_FIVE Return) ---
@@ -1227,15 +1336,17 @@ namespace Caro.NET
             // Helper: CountAndScoreSequence (Same as before - calculates score for a single player's sequence)
             int CountAndScoreSequence(int r, int c, int p)
             {
-                // ... (Implementation is the same as in previous responses) ...
-                int consecutive = 0; int openEnds = 0; bool startBlockedByOpponent = false; bool endBlockedByOpponent = false;
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
+                // Count backwards
                 int temp_r = r - dr; int temp_c = c - dc;
+                int consecutive = 0; int openEnds = 0; bool startBlockedByOpponent = false; bool endBlockedByOpponent = false;
+                temp_r = r - dr; temp_c = c - dc;
+                consecutive = 0;
                 while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) 
                 { 
-                    consecutive++; temp_r -= dr; temp_c -= dc; 
+                    consecutive++; 
+                    temp_r -= dr; temp_c -= dc; 
                 }
-
                 if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } 
                 else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) 
                 { 
@@ -1245,11 +1356,13 @@ namespace Caro.NET
                 {
                     startBlockedByOpponent = true; 
                 }
-                temp_r = r + dr; temp_c = c + dc;
 
+                // Count forwards
+                temp_r = r + dr; temp_c = c + dc;
                 while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) 
                 { 
-                    consecutive++; temp_r += dr; temp_c += dc; 
+                    consecutive++; 
+                    temp_r += dr; temp_c += dc; 
                 }
 
                 if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } 
@@ -1286,8 +1399,24 @@ namespace Caro.NET
                 return 0;
             }
 
+            bool showEvaluateScore = false;
+            if ((row == 10 && col == 12) || (row == 10 && col == 10) && dc == 1)
+            {
+                Debug.WriteLine("Warning: ScoreLine_V3_Final: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, col);
+                showEvaluateScore = true;
+            }
+
             // 1. Calculate offensive score (for player)
-            int playerScore = CountAndScoreSequence(row, col, player);
+            int playerScore = 0;
+            if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, player, opponent))
+                playerScore = CountAndScoreSequence(row, col, player);
+
+            if (showEvaluateScore)
+            {
+                Debug.WriteLine("Warning: ScoreLine_V3_Final: Row: {0}, Column: {1}. Evaluate Score: {2}", row, col, playerScore);
+                showEvaluateScore = false;
+            }
+
             // Check for immediate player win - return highest score if found
             if (playerScore >= currentScores["FIVE"]) 
                 return currentScores["FIVE"];
@@ -1298,7 +1427,9 @@ namespace Caro.NET
             currentBoard[row, col] = player; // Restore player's piece
 
             // 3. Calculate Neutralize Bonus (using the corrected logic)
-            int neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
+            int neutralizeBonus = 0;
+            if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, player, opponent))
+                neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
 
             // 4. Calculate Block Score (based on opponent's potential, EXCLUDING FIVE)
             int blockScore = 0;
@@ -1320,6 +1451,7 @@ namespace Caro.NET
             return playerScore + blockScore + neutralizeBonus;
         }
 
+        /*
         // --- Helper: CalculateNeutralizeBonus (Corrected Version) ---
         /// <summary>
         /// Calculates the neutralization bonus achieved by placing 'player' at (r_center, c_center).
@@ -1368,6 +1500,7 @@ namespace Caro.NET
             }
             return max_bonus;
         }
+        */
 
 
         // --- Updated EvaluateCell (V3 - Calls Corrected ScoreLine) ---
@@ -1377,6 +1510,8 @@ namespace Caro.NET
         /// </summary>
         private int EvaluateCell_V3_Final(int[,] currentBoard, int row, int col, int player)
         {
+
+
             if (currentBoard[row, col] != EMPTY_CELL) return int.MinValue;
             int totalScore = 0;
             (int dr, int dc)[] directions = { (0, 1), (1, 0), (1, 1), (1, -1) };
@@ -1387,12 +1522,13 @@ namespace Caro.NET
                 totalScore += ScoreLine_V3_Final(currentBoard, row, col, dir.dr, dir.dc, player);
             }
             currentBoard[row, col] = EMPTY_CELL; // Revert board
-                                                 // Add center bonus
+            // Add center bonus
             double centerBonus = ((BOARD_SIZE / 2.0 - Math.Abs(row - (BOARD_SIZE - 1.0) / 2.0)) + (BOARD_SIZE / 2.0 - Math.Abs(col - (BOARD_SIZE - 1.0) / 2.0)));
             totalScore += (int)(centerBonus * 0.5);
             return totalScore;
         }
 
+        /*
 
         // --- Final findBestMove (V4 - Uses Corrected EvaluateCell) ---
         /// <summary>
@@ -1410,7 +1546,7 @@ namespace Caro.NET
             // Handle first move
             int moveCountOnBoard = 0;
             for (int r = 0; r < BOARD_SIZE; ++r) for (int c = 0; c < BOARD_SIZE; ++c) if (currentBoard[r, c] != EMPTY_CELL) moveCountOnBoard++;
-            if (moveCountOnBoard <= 1) { /* ... Center logic ... */ }
+            if (moveCountOnBoard <= 1) {  ... Center logic ...  }
 
             int[,] tempBoard = (int[,])currentBoard.Clone(); // Clone ONLY for win/loss checks
 
@@ -1515,6 +1651,7 @@ namespace Caro.NET
             return bestHeuristicMove;
 
         } // End of FindBestMoveAggressive_V4_Final
+        */
 
 
         // Include the Corrected CalculateNeutralizeBonus_V2 helper function here
@@ -1566,6 +1703,7 @@ namespace Caro.NET
             return max_bonus;
         }
 
+        /*
         /// <summary>
         /// Determines the score value of the highest threat from the opponent
         /// that would be blocked if the 'player' were to move at 'blockMove'.
@@ -1618,7 +1756,9 @@ namespace Caro.NET
                 return 0; // Should not happen if called on an empty cell
             }
         }
+        */
 
+        /*
         // --- You need the CountAndScoreSequence_Helper accessible here ---
         // This is the same helper function used inside ScoreLine.
         // It calculates the score for player 'p's sequence at (r,c) along a direction.
@@ -1627,12 +1767,12 @@ namespace Caro.NET
             // ... (Exact same implementation as provided inside ScoreLine_V2_Final) ...
             int consecutive = 0; int openEnds = 0; bool startBlockedByOpponent = false; bool endBlockedByOpponent = false;
             int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
-            int temp_r = r - dr; int temp_c = c - dc;
-            while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) { consecutive++; temp_r -= dr; temp_c -= dc; }
-            if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[temp_r, temp_c] == otherPlayer) { startBlockedByOpponent = true; }
-            temp_r = r + dr; temp_c = c + dc;
-            while (temp_r >= 0 && temp_r < BOARD_SIZE && temp_c >= 0 && temp_c < BOARD_SIZE && currentBoard[temp_r, temp_c] == p) { consecutive++; temp_r += dr; temp_c += dc; }
-            if (temp_r < 0 || temp_r >= BOARD_SIZE || temp_c < 0 || temp_c >= BOARD_SIZE) { } else if (currentBoard[temp_r, temp_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[temp_r, temp_c] == otherPlayer) { endBlockedByOpponent = true; }
+            int backward_r = r - dr; int backward_c = c - dc;
+            while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p) { consecutive++; backward_r -= dr; backward_c -= dc; }
+            if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) { } else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[backward_r, backward_c] == otherPlayer) { startBlockedByOpponent = true; }
+            backward_r = r + dr; backward_c = c + dc;
+            while (backward_r >= 0 && backward_r < BOARD_SIZE && backward_c >= 0 && backward_c < BOARD_SIZE && currentBoard[backward_r, backward_c] == p) { consecutive++; backward_r += dr; backward_c += dc; }
+            if (backward_r < 0 || backward_r >= BOARD_SIZE || backward_c < 0 || backward_c >= BOARD_SIZE) { } else if (currentBoard[backward_r, backward_c] == EMPTY_CELL) { openEnds++; } else if (currentBoard[backward_r, backward_c] == otherPlayer) { endBlockedByOpponent = true; }
             consecutive++;
             if (consecutive >= WIN_LENGTH) { return (consecutive == WIN_LENGTH && !(startBlockedByOpponent && endBlockedByOpponent)) ? currentScores["FIVE"] : 0; }
             else if (consecutive == 4) { return (openEnds == 2) ? currentScores["FOUR_OPEN"] : ((openEnds == 1) ? currentScores["FOUR_CLOSED"] : 0); }
@@ -1641,8 +1781,9 @@ namespace Caro.NET
             else if (consecutive == 1) { return (openEnds == 2) ? currentScores["ONE_OPEN"] : ((openEnds == 1) ? currentScores["ONE_CLOSED"] : 0); }
             return 0;
         }
+        */
 
-
+        /*
         /// <summary>
         /// Finds the best move using Aggressive V2 scoring.
         /// **REVISED LOGIC V5:** Compares critical blocking moves based on the
@@ -1779,8 +1920,8 @@ namespace Caro.NET
             {
                 int currentScore = EvaluateCell_V3_Final(currentBoard, move.Row, move.Col, player); // Use final evaluator
                                                                                                     // ... (Update best heuristic move logic as before) ...
-                if (currentScore > bestHeuristicScore) { /*...*/ bestHeuristicMove = move; }
-                else if (currentScore == bestHeuristicScore && _random.NextDouble() < 0.3) { /*...*/ }
+                if (currentScore > bestHeuristicScore) { bestHeuristicMove = move; }
+                else if (currentScore == bestHeuristicScore && _random.NextDouble() < 0.3) {  }
             }
 
             // ... (Fallback logic and return bestHeuristicMove) ...
@@ -1799,6 +1940,7 @@ namespace Caro.NET
 
 
         } // End of FindBestMoveAggressive_V5_Final
+        */
 
 
         /// <summary>
@@ -1951,19 +2093,19 @@ namespace Caro.NET
             {
                 // Use the latest EvaluateCell (V3_Final)
 
-                bool showEvaluateScore = false;
-                if ((move.Row == 7 && move.Col == 13) || (move.Row == 10 && move.Col == 14) || (move.Row == 13 && move.Col == 11))
-                {
-                    Debug.WriteLine("Warning: AI V6 Lookahead: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", move.Row, move.Col);
-                    showEvaluateScore = true;
-                }
+                //bool showEvaluateScore = false;
+                //if ((move.Row == 9 && move.Col == 10) || (move.Row == 10 && move.Col == 10))
+                //{
+                //    Debug.WriteLine("Warning: AI V6 Lookahead: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", move.Row, move.Col);
+                //    showEvaluateScore = true;
+                //}
 
                 int currentScore = EvaluateCell_V3_Final(currentBoard, move.Row, move.Col, player);
-                if (showEvaluateScore)
-                {
-                    Debug.WriteLine("Warning: AI V6 Lookahead: Row: {0}, Column: {1}. Evaluate Score: {2}", move.Row, move.Col, currentScore);
-                    showEvaluateScore = false;
-                }
+                //if (showEvaluateScore)
+                //{
+                //    Debug.WriteLine("Warning: AI V6 Lookahead: Row: {0}, Column: {1}. Evaluate Score: {2}", move.Row, move.Col, currentScore);
+                //    showEvaluateScore = false;
+                //}
 
                 // ... (Update best heuristic move logic as before) ...
                 if (currentScore > bestHeuristicScore) 
