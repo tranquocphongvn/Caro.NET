@@ -83,11 +83,15 @@ namespace Caro.NET
         /// <param name="player">The player to check for (PLAYER_X or PLAYER_O).</param>
         /// <param name="currentBoard">The board state (2D array) to check.</param>
         /// <returns>True if the player wins, false otherwise.</returns>
-        public bool CheckWin(int r, int c, int player, int[,] currentBoard)
+        public Dictionary<string, Move>? CheckWin(int r, int c, int player, int[,] currentBoard)
         {
-            if (r < 0 || r >= BOARD_SIZE || c < 0 || c >= BOARD_SIZE || currentBoard[r, c] != player)
+
+            var possibleWin = new Dictionary<string, Move>();
+
+            if (IsOutOfCaroBoard(r, c) || currentBoard[r, c] != player)
             {
-                return false; // Invalid cell or not the player's piece
+                //return false; // Invalid cell or not the player's piece
+                return null;
             }
 
             int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
@@ -103,38 +107,52 @@ namespace Caro.NET
                 // Check positive direction (+dr, +dc)
                 int r_check = r + dr;
                 int c_check = c + dc;
-                while (r_check >= 0 && r_check < BOARD_SIZE && c_check >= 0 && c_check < BOARD_SIZE && currentBoard[r_check, c_check] == player)
+                while (IsInCaroBoard(r_check, c_check) && currentBoard[r_check, c_check] == player)
                 {
+                    string key = $"{r_check}-{c_check}";
+                    possibleWin.Add(key, new Move(r_check, c_check));
+
                     count++;
                     r_check += dr;
                     c_check += dc;
                 }
-                if (r_check < 0 || r_check >= BOARD_SIZE || c_check < 0 || c_check >= BOARD_SIZE || currentBoard[r_check, c_check] == opponent)
+                if (IsOutOfCaroBoard(r_check, c_check) || currentBoard[r_check, c_check] == opponent)
                 {
+                    string key = $"blocked:{r_check}-{c_check}";
+                    possibleWin.Add(key, new Move(r_check, c_check));
+
                     blockedEnds++;
                 }
 
                 // Check negative direction (-dr, -dc)
                 r_check = r - dr;
                 c_check = c - dc;
-                while (r_check >= 0 && r_check < BOARD_SIZE && c_check >= 0 && c_check < BOARD_SIZE && currentBoard[r_check, c_check] == player)
+                while (IsInCaroBoard(r_check, c_check) && currentBoard[r_check, c_check] == player)
                 {
+                    string key = $"{r_check}-{c_check}";
+                    possibleWin.Add(key, new Move(r_check, c_check));
+
                     count++;
                     r_check -= dr;
                     c_check -= dc;
                 }
-                if (r_check < 0 || r_check >= BOARD_SIZE || c_check < 0 || c_check >= BOARD_SIZE || currentBoard[r_check, c_check] == opponent)
+                if (IsOutOfCaroBoard(r_check, c_check) || currentBoard[r_check, c_check] == opponent)
                 {
+                    string key = $"blocked:{r_check}-{c_check}";
+                    possibleWin.Add(key, new Move(r_check, c_check));
+
                     blockedEnds++;
                 }
 
                 // Evaluate win condition: Exactly WIN_LENGTH and not blocked on both ends by opponent
                 if (count == WIN_LENGTH && blockedEnds < 2)
                 {
-                    return true; // Win!
+                    //return true; // Win!
+                    return possibleWin;
                 }
             }
-            return false; // No winning line found
+            //return false; // No winning line found
+            return null; // No winning line found
         }
 
         /*
@@ -1992,7 +2010,7 @@ namespace Caro.NET
             foreach (var move in possibleMoves)
             {
                 checkBoard[move.Row, move.Col] = player;
-                if (CheckWin(move.Row, move.Col, player, checkBoard))
+                if (CheckWin(move.Row, move.Col, player, checkBoard) != null)
                 {
                     Debug.WriteLine($"AI V6 Lookahead: Found winning move at {move}");
                     return move;
@@ -2008,7 +2026,7 @@ namespace Caro.NET
 
                 StopHereForDebugging(move, opponent);
 
-                if (CheckWin(move.Row, move.Col, opponent, checkBoard))
+                if (CheckWin(move.Row, move.Col, opponent, checkBoard) != null)
                 {
                     criticalBlockingMoves.Add(move);
                 }
@@ -2043,7 +2061,7 @@ namespace Caro.NET
                         foreach (var oppMove in opponentResponses)
                         {
                             lookaheadBoard[oppMove.Row, oppMove.Col] = opponent; // Simulate opponent's response
-                            if (CheckWin(oppMove.Row, oppMove.Col, opponent, lookaheadBoard))
+                            if (CheckWin(oppMove.Row, oppMove.Col, opponent, lookaheadBoard) != null)
                             {
                                 opponentWinsNext = true; // Found a winning response for opponent
                                 lookaheadBoard[oppMove.Row, oppMove.Col] = EMPTY_CELL; // Revert opponent move

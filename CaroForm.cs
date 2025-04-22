@@ -260,7 +260,7 @@ namespace Caro.NET
 
         private bool CheckWinLatestMove()
         {
-            if (caroAI.CheckWin(LatestMoved.Cell.Row, LatestMoved.Cell.Column, LatestMoved.CaroValue, CaroBoard.GetCaroBoard()))
+            if (caroAI.CheckWin(LatestMoved.Cell.Row, LatestMoved.Cell.Column, LatestMoved.CaroValue, CaroBoard.GetCaroBoard()) != null)
             {
                 CaroGameStatus = GameStatus.Over;
                 MessageBox.Show(String.Format("Player {0} won!", Utils.CaroValueToText(LatestMoved.CaroValue)), "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
