@@ -1435,7 +1435,7 @@ namespace Caro.NET
                     return currentScores["FIVE"];
 
                 // 3. Calculate Neutralize Bonus (using the corrected logic)
-                neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
+                //neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
             }
 
             // 2. Calculate opponent's potential score if they played here
@@ -1956,7 +1956,7 @@ namespace Caro.NET
 
         private bool StopHereForDebugging(int row, int column, int player)
         {
-            if ((row == 5 && column == 2))
+            if ((row == 5 && column == 6) || (row == 5 && column == 10))
             {
                 Debug.WriteLine("Warning: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, column);
                 return true;
@@ -2006,7 +2006,7 @@ namespace Caro.NET
             {
                 checkBoard[move.Row, move.Col] = opponent;
 
-                // StopHereForDebugging(move, opponent);
+                StopHereForDebugging(move, opponent);
 
                 if (CheckWin(move.Row, move.Col, opponent, checkBoard))
                 {

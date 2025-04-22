@@ -545,6 +545,7 @@ namespace Caro.NET
                         gridCaro.Refresh();
                 }
                 g.Dispose();
+                CaroGameStatus = GameStatus.Playing;
             }
             else
             {
