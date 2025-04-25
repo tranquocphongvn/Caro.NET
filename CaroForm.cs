@@ -260,9 +260,20 @@ namespace Caro.NET
 
         private bool CheckWinLatestMove()
         {
-            if (caroAI.CheckWin(LatestMoved.Cell.Row, LatestMoved.Cell.Column, LatestMoved.CaroValue, CaroBoard.GetCaroBoard()) != null)
+            int[,] board = CaroBoard.GetCaroBoard();
+            var possibleWin = caroAI.CheckWin(LatestMoved.Cell.Row, LatestMoved.Cell.Column, LatestMoved.CaroValue, board);
+            if (possibleWin != null)
             {
                 CaroGameStatus = GameStatus.Over;
+                Graphics g = gridCaro.CreateGraphics();
+                foreach (var item in possibleWin.Take(5))
+                {
+                    int r = item.Value.Row;
+                    int c = item.Value.Col;
+                    DrawMove(g, new CaroMove(r, c, board[r, c], 0), true, true);
+                }
+                g.Dispose();
+
                 MessageBox.Show(String.Format("Player {0} won!", Utils.CaroValueToText(LatestMoved.CaroValue)), "Information", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return true;
             }

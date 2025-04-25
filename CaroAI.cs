@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics; // For Stopwatch (optional timing)
+using System.Linq;
 using System.Threading.Tasks; // For asynchronous AI move trigger
 
 
@@ -85,9 +86,6 @@ namespace Caro.NET
         /// <returns>True if the player wins, false otherwise.</returns>
         public Dictionary<string, Move>? CheckWin(int r, int c, int player, int[,] currentBoard)
         {
-
-            var possibleWin = new Dictionary<string, Move>();
-
             if (IsOutOfCaroBoard(r, c) || currentBoard[r, c] != player)
             {
                 //return false; // Invalid cell or not the player's piece
@@ -103,14 +101,15 @@ namespace Caro.NET
                 int dc = dir.dc;
                 int count = 1; // Include the piece at (r, c)
                 int blockedEnds = 0; // Count ends blocked by the opponent
+                var possibleWin = new Dictionary<string, Move>();
+                var possibleBlock = new Dictionary<string, Move>();
 
                 // Check positive direction (+dr, +dc)
                 int r_check = r + dr;
                 int c_check = c + dc;
                 while (IsInCaroBoard(r_check, c_check) && currentBoard[r_check, c_check] == player)
                 {
-                    string key = $"{r_check}-{c_check}";
-                    possibleWin.Add(key, new Move(r_check, c_check));
+                    possibleWin.Add($"{dr}_{dc}:{r_check}-{c_check}", new Move(r_check, c_check));
 
                     count++;
                     r_check += dr;
@@ -118,8 +117,7 @@ namespace Caro.NET
                 }
                 if (IsOutOfCaroBoard(r_check, c_check) || currentBoard[r_check, c_check] == opponent)
                 {
-                    string key = $"blocked:{r_check}-{c_check}";
-                    possibleWin.Add(key, new Move(r_check, c_check));
+                    possibleWin.Add($"{dr}_{dc}:forward", new Move(r_check, c_check));
 
                     blockedEnds++;
                 }
@@ -129,8 +127,7 @@ namespace Caro.NET
                 c_check = c - dc;
                 while (IsInCaroBoard(r_check, c_check) && currentBoard[r_check, c_check] == player)
                 {
-                    string key = $"{r_check}-{c_check}";
-                    possibleWin.Add(key, new Move(r_check, c_check));
+                    possibleWin.Add($"{dr}_{dc}:{r_check}-{c_check}", new Move(r_check, c_check));
 
                     count++;
                     r_check -= dr;
@@ -138,8 +135,7 @@ namespace Caro.NET
                 }
                 if (IsOutOfCaroBoard(r_check, c_check) || currentBoard[r_check, c_check] == opponent)
                 {
-                    string key = $"blocked:{r_check}-{c_check}";
-                    possibleWin.Add(key, new Move(r_check, c_check));
+                    possibleWin.Add($"{dr}_{dc}:backward", new Move(r_check, c_check));
 
                     blockedEnds++;
                 }
@@ -148,6 +144,14 @@ namespace Caro.NET
                 if (count == WIN_LENGTH && blockedEnds < 2)
                 {
                     //return true; // Win!
+                    var last = possibleWin.Last();
+                    possibleWin.Remove(last.Key);
+
+                    string[] keys = possibleWin.Keys.First().Split(":");
+                    possibleWin.Add($"{keys[0]}:{r}-{c}", new Move(r, c));
+
+                    possibleWin.Add(last.Key , last.Value);
+
                     return possibleWin;
                 }
             }
@@ -2025,10 +2029,30 @@ namespace Caro.NET
                 checkBoard[move.Row, move.Col] = opponent;
 
                 StopHereForDebugging(move, opponent);
-
-                if (CheckWin(move.Row, move.Col, opponent, checkBoard) != null)
+                var possibleWin = CheckWin(move.Row, move.Col, opponent, checkBoard);
+                if (possibleWin != null)
                 {
                     criticalBlockingMoves.Add(move);
+                    var last = possibleWin.Last();
+                    string[] keys = last.Key.Split(":");
+                    string[] dir = keys[0].Split("_");
+                    int dr = int.Parse(dir[0]);
+                    int dc = int.Parse(dir[1]);
+
+                    if (keys[1].Contains("backward")) // blocked 1 side, add criticalBlocking move to the other side for decision below
+                    {
+                        int r = last.Value.Row + (WIN_LENGTH + 1) * dr;
+                        int c = last.Value.Col + (WIN_LENGTH + 1) * dc;
+                        if (IsInCaroBoard(r, c) && checkBoard[r, c] == EMPTY_CELL)
+                            criticalBlockingMoves.Add(new Move(r, c));
+                    }
+                    else if (keys[1].Contains("forward")) // blocked 1 side, add criticalBlocking move to the other side for decision below
+                    {
+                        int r = last.Value.Row - (WIN_LENGTH + 1) * dr;
+                        int c = last.Value.Col - (WIN_LENGTH + 1) * dc;
+                        if (IsInCaroBoard(r, c) && checkBoard[r, c] == EMPTY_CELL)
+                            criticalBlockingMoves.Add(new Move(r, c));
+                    }
                 }
                 checkBoard[move.Row, move.Col] = EMPTY_CELL; // Revert
             }
