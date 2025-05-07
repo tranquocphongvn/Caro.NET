@@ -77,12 +77,10 @@
             // 
             radHumanPC.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             radHumanPC.AutoSize = true;
-            radHumanPC.Checked = true;
             radHumanPC.Location = new Point(13, 47);
             radHumanPC.Name = "radHumanPC";
             radHumanPC.Size = new Size(139, 24);
             radHumanPC.TabIndex = 2;
-            radHumanPC.TabStop = true;
             radHumanPC.Text = "Human (X) vs PC";
             radHumanPC.UseVisualStyleBackColor = true;
             radHumanPC.CheckedChanged += radHumanPC_CheckedChanged;
@@ -103,10 +101,12 @@
             // 
             radHuman.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             radHuman.AutoSize = true;
+            radHuman.Checked = true;
             radHuman.Location = new Point(13, 115);
             radHuman.Name = "radHuman";
             radHuman.Size = new Size(170, 24);
             radHuman.TabIndex = 4;
+            radHuman.TabStop = true;
             radHuman.Text = "Human (X) vs Human";
             radHuman.UseVisualStyleBackColor = true;
             radHuman.CheckedChanged += radHuman_CheckedChanged;

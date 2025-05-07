@@ -172,6 +172,25 @@ namespace Caro.NET
             }
         }
 
+        private void DrawEvaluatedValue()
+        {
+            //gridCaro.Refresh();
+            Graphics g = gridCaro.CreateGraphics();
+            Brush brushText = new SolidBrush(Color.Black);
+            for (int row = 0; row < MAX_ROWS; row++)
+            {
+                for (int column = 0; column < MAX_COLUMNS; column++)
+                {
+                    if (CaroBoard.GetEvaluatedValueFromBoard(row, column) > 0)
+                    {
+                        Rect rect = GetCellRectangle(row, column);
+                        g.DrawString(CaroBoard.GetEvaluatedValueFromBoard(row, column).ToString(), gridCaro.Font, brushText, rect.X, rect.Y);
+                    }
+                }
+            }
+            g.Dispose();
+        }
+
         //private Color GetColorAt(int x, int y)
         //{
         //    Bitmap bmp = new Bitmap(1, 1);
@@ -405,11 +424,14 @@ namespace Caro.NET
             if (!radPCvsPC.Checked)
             {
                 CaroMove? caroMove = GetCaroMoveFromCursor(true);
-                if (CaroGameStatus != GameStatus.Over && ManualMove(caroMove))
+                if (ManualMove(caroMove) && CaroGameStatus != GameStatus.Over)
                 {
                     if (radPCvsHuman.Checked || radHumanPC.Checked)
                     {
+                        gridCaro.Refresh();
+                        CaroBoard.ClearEvaluatedBoard();
                         PCMoveTask();
+                        DrawEvaluatedValue();
                     }
                     else if (radHuman.Checked) 
                     {
@@ -451,25 +473,25 @@ namespace Caro.NET
                 newMove.CaroValue = Utils.GetOpponentCaroValue(LatestMoved.CaroValue);
                 CaroBoard.FirstMoved = newMove;
             }
-            //else if (secondMoved == null) // firstMoved != null && 
-            //{
-            //    // calculate the secondMoved Value
-            //    for (int i = -1; i <= 1; i++)
-            //    {
-            //        for (int j = -1; j <= 1; j++)
-            //        { // (i !== 0 && j !== 0) because the 2nd moving should in the 4 corner (diagonal)
-            //            if ((i != 0 || j != 0) && (firstMoved.Value.Cell.Row + i >= 0 && firstMoved.Value.Cell.Row + i < Utils.MAX_ROWS && firstMoved.Value.Cell.Column + j >= 0 && firstMoved.Value.Cell.Column + j < Utils.MAX_COLUMNS))
-            //            {
-            //                availablePositions.Add(new CaroCell(firstMoved.Value.Cell.Row + i, firstMoved.Value.Cell.Column + j));
-            //            }
-            //        }
-            //    }
-            //    CaroCell availablePosition = availablePositions[new Random().Next(availablePositions.Count)];
-            //    newMove.EvalValue = Utils.CARO_EVAL_SECOND;
-            //    newMove.Cell = availablePosition;
-            //    newMove.CaroValue = Utils.GetOpponentCaroValue(LatestMoved.CaroValue);
-            //    CaroBoard.SecondMoved = newMove;
-            //}
+            else if (secondMoved == null) // firstMoved != null && 
+            {
+                // calculate the secondMoved Value
+                for (int i = -1; i <= 1; i++)
+                {
+                    for (int j = -1; j <= 1; j++)
+                    { // (i !== 0 && j !== 0) because the 2nd moving should in the 4 corner (diagonal)
+                        if ((i != 0 || j != 0) && (firstMoved.Value.Cell.Row + i >= 0 && firstMoved.Value.Cell.Row + i < Utils.MAX_ROWS && firstMoved.Value.Cell.Column + j >= 0 && firstMoved.Value.Cell.Column + j < Utils.MAX_COLUMNS))
+                        {
+                            availablePositions.Add(new CaroCell(firstMoved.Value.Cell.Row + i, firstMoved.Value.Cell.Column + j));
+                        }
+                    }
+                }
+                CaroCell availablePosition = availablePositions[new Random().Next(availablePositions.Count)];
+                newMove.EvalValue = Utils.CARO_EVAL_SECOND;
+                newMove.Cell = availablePosition;
+                newMove.CaroValue = Utils.GetOpponentCaroValue(LatestMoved.CaroValue);
+                CaroBoard.SecondMoved = newMove;
+            }
             else
             {
                 Move? aiMove = caroAI.FindBestMoveAggressive_V6_Lookahead(chessBoard, opponentCaroValue);
@@ -495,15 +517,10 @@ namespace Caro.NET
             if (!String.IsNullOrEmpty(txt))
             {
                 FileStream file;
-                if (!File.Exists("history.txt"))
-                {
-                    file = File.Create("history.txt");
-                }
-                else
-                {
-                    file = File.OpenWrite("history.txt");
-                }
+                if (File.Exists("history.txt"))
+                    File.Delete("history.txt");
 
+                file = File.OpenWrite("history.txt");
                 byte[] data = new UTF8Encoding(true).GetBytes(txt);
                 file.Write(data, 0, data.Length);
                 file.Close();
@@ -685,7 +702,7 @@ namespace Caro.NET
             if (CaroGameStatus == GameStatus.Over)
             {
                 CurrentMoveIndex = CaroBoard.HistoryMoves != null ? CaroBoard.HistoryMoves.Count - 1 : -1;
-                gridCaro.Refresh();
+                
             }
         }
 
@@ -694,7 +711,12 @@ namespace Caro.NET
             if (IsComputerPlaying)
                 return;
 
+            gridCaro.Refresh();
+            CaroBoard.ClearEvaluatedBoard();
+
             PCMoveTask();
+
+            DrawEvaluatedValue();
             CheckWinLatestMove();
         }
 

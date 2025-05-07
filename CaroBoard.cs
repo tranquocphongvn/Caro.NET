@@ -11,6 +11,7 @@ namespace Caro.NET
     public class CaroBoard
     {
         private static int[,] caroBoard = new int[Utils.MAX_ROWS, Utils.MAX_COLUMNS];
+        private static int[,] caroEvaluatedBoard = new int[Utils.MAX_ROWS, Utils.MAX_COLUMNS];
         public static List<CaroMove>? HistoryMoves { get; set; }
         public static CaroMove? FirstMoved { get; set; }
         public static CaroMove? SecondMoved { get; set; }
@@ -23,10 +24,17 @@ namespace Caro.NET
         public static void ClearBoard()
         {
             caroBoard = new int[Utils.MAX_ROWS, Utils.MAX_COLUMNS];
+            caroEvaluatedBoard = new int[Utils.MAX_ROWS, Utils.MAX_COLUMNS];
             FirstMoved = null;
             SecondMoved = null;
             HistoryMoves = null;
         }
+
+        public static void ClearEvaluatedBoard()
+        {
+            caroEvaluatedBoard = new int[Utils.MAX_ROWS, Utils.MAX_COLUMNS];
+        }
+
         public static int[,] CloneBoard()
         {
             int[,] newCaroBoard;// = new int[Utils.MAX_ROW, Utils.MAX_COLUMN];
@@ -56,6 +64,16 @@ namespace Caro.NET
         public static int GetValueFromBoard(int row, int col)
         {
             return caroBoard[row, col];
+        }
+
+        public static void PutEvaluatedValueIntoBoard(int row, int col, int value)
+        {
+            caroEvaluatedBoard[row, col] = value;
+        }
+
+        public static int GetEvaluatedValueFromBoard(int row, int col)
+        {
+            return caroEvaluatedBoard[row, col];
         }
 
         public static bool IsEmptyCell(int row, int col)
