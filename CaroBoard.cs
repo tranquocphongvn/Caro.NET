@@ -50,6 +50,22 @@ namespace Caro.NET
             CaroBoard.HistoryMoves.Add(move);
         }
 
+        public static CaroMove RemoveLatestMoveFromHistory()
+        {
+            if (CaroBoard.HistoryMoves != null && CaroBoard.HistoryMoves.Count > 0)
+            {
+                int lastIndex = CaroBoard.HistoryMoves.Count - 1;
+                CaroMove move = CaroBoard.HistoryMoves[lastIndex];
+                PutValueIntoBoard(move.Cell.Row, move.Cell.Column, Utils.CARO_NONE); // clear cell at the move
+                HistoryMoves.RemoveAt(lastIndex); // remove the move from history
+                if (lastIndex > 0) {
+                    return HistoryMoves[lastIndex - 1];
+                }
+            }
+            return new CaroMove();
+        }
+
+
         public static void PutValueIntoBoard(int row, int col, int value)
         {
             caroBoard[row, col] = value;

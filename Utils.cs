@@ -8,8 +8,8 @@ namespace Caro.NET
 {
     public static class Utils
     {
-        public const int MAX_ROWS = 25;
-        public const int MAX_COLUMNS = 25;
+        public const int MAX_ROWS = 21;
+        public const int MAX_COLUMNS = 21;
         public const int CELL_SIZE = 50;
         public const int CELL_PADDING = 10;
         public const int BOARD_LEFT = 10;
@@ -28,7 +28,8 @@ namespace Caro.NET
         {
             New = 0,
             Playing = 1,
-            Over = 2
+            Over = 2,
+            Stop = 3
         }
 
         public struct CaroCell

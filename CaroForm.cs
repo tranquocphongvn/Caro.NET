@@ -683,6 +683,17 @@ namespace Caro.NET
 
                 gridCaro.Refresh();
             }
+
+            if (CaroGameStatus == GameStatus.Stop)
+            {
+                if (CurrentMoveIndex >= 0 && CaroBoard.HistoryMoves != null)
+                {
+                    LatestMoved = CaroBoard.RemoveLatestMoveFromHistory();
+                    CurrentMoveIndex--;
+                }
+
+                gridCaro.Refresh();
+            }
         }
 
         private void btnNext_Click(object sender, EventArgs e)
@@ -710,6 +721,8 @@ namespace Caro.NET
         {
             if (IsComputerPlaying)
                 return;
+            if (CaroGameStatus == GameStatus.Stop)
+                CaroGameStatus = GameStatus.Playing;
 
             gridCaro.Refresh();
             CaroBoard.ClearEvaluatedBoard();
@@ -836,8 +849,7 @@ namespace Caro.NET
 
         private void btnStop_Click(object sender, EventArgs e)
         {
-            CaroGameStatus = GameStatus.Over;
-            CaroGameStatus = GameStatus.Over;
+            CaroGameStatus = GameStatus.Stop;
         }
 
         private void CaroForm_FormClosing(object sender, FormClosingEventArgs e)

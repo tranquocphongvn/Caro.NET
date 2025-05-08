@@ -52,22 +52,23 @@ namespace Caro.NET
             {"BLOCK_FOUR_OPEN", 10000}, // Blocking one end of opponent's open four
 
             {"THREE_OPEN", 2000}, // Keep offensive value high for now, (_*xxx*_ ; __xx*x__)
-            {"SEMI_THREE_OPEN", 500}, // Keep offensive value high for now, (_xx_x*_)
-            {"BLOCK_THREE_OPEN", 1000},  // SIGNIFICANTLY INCREASED from 10000
+            {"SEMI_THREE_OPEN", 1000}, // Keep offensive value high for now, (_xx_x*_)
+            {"BLOCK_THREE_OPEN", 1990},  // SIGNIFICANTLY INCREASED from 10000
 
             //{"THREE_OPEN", 50000},      // Creating own open three
             //{"BLOCK_THREE_OPEN", 10000}, // Blocking one end of opponent's open three
 
             // Other scores remain similar to the previous aggressive version
-            {"FOUR_CLOSED", 2000 + 2},     // Creating a closed four, (_*xxxxo  or  oxxxx*_)
-            {"BLOCK_FOUR_CLOSED", 1000},// Blocking opponent's closed four
+            {"FOUR_CLOSED", 2010},     // Creating a closed four, (_*xxxxo  or  oxxxx*_)
+            {"BLOCK_FOUR_CLOSED", 5000},// Blocking opponent's closed four
 
             {"THREE_CLOSED", 200},      // Creating a closed three , 150 => 300 , (_xxxo_  or o___xxx__)
-            {"BLOCK_THREE_CLOSED", 200}, // Blocking opponent's closed three
+            {"BLOCK_THREE_CLOSED", 190}, // Blocking opponent's closed three
 
             {"TWO_OPEN", 200},          // Creating an open two, (___*xx___ ; ___xx*___ ; ___x*x___ )
-            {"SEMI_TWO_OPEN", 100},     // Creating an open two, (___x_x*__; ___x__x*__)
-            {"BLOCK_TWO_OPEN", 150},    // Blocking opponent's open two
+            {"SEMI_TWO_OPEN", 150},     // Creating an open two, (___x_x*__; ___x__x*__)
+            {"BLOCK_TWO_OPEN", 190},    // Blocking opponent's open two
+
             {"TWO_CLOSED", 25},         // Creating a closed two, (__*xxo_ or o_*xx_)
             {"BLOCK_TWO_CLOSED", 20},   // Blocking opponent's closed two
             {"ONE_OPEN", 2},            // One piece with two open ends (____x____)
@@ -299,14 +300,15 @@ namespace Caro.NET
             int CountAndScoreSequence(int r, int c, int p)
             {
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
-                int main_count = 0; // start from 1 ..._XXXXO ; max = WIN_LENGTH
-                int consecutive = 0;
+                int main_count = 0; // start from 1 ..._XXXXO ; max = WIN_LENGTH, dont count itself
+                int consecutive = 0; // (currentBoard[r, c] == p)? 1 : 0;
 
                 // for backward
                 int backward_r = row - dr; int backward_c = col - dc;
                 int backward_count = 0; // start from 1
                 bool backward_bound = IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't main_count
                 int backward_empty = 0;
+                int backward_empty_consecutive = 0;
                 int backward_consecutive = 0;
                 bool backward_full_consecutive = true;
                 int[] backward_pattern = new int[WIN_LENGTH + 1];
@@ -316,12 +318,13 @@ namespace Caro.NET
                 int forward_count = 0; // start from 1
                 bool forward_bound = IsOutOfCaroBoard(forward_r, forward_c); // forward boundary is out of the board, don't main_count
                 int forward_empty = 0;
+                int forward_empty_consecutive = 0;
                 int forward_consecutive = 0;
                 bool forward_full_consecutive = true;
                 int[] forward_pattern = new int[WIN_LENGTH + 1];
 
                 // Count backwards & forwards
-                while (main_count <= WIN_LENGTH && (!backward_bound || !forward_bound))
+                while (main_count < WIN_LENGTH && (!backward_bound || !forward_bound))
                 {
                     // Check backwards
                     backward_bound = backward_bound || IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't main_count
@@ -382,22 +385,20 @@ namespace Caro.NET
                 backward_full_consecutive = backward_full_consecutive || backward_consecutive == 0;
                 forward_full_consecutive = forward_full_consecutive || forward_consecutive == 0;
 
+                consecutive = consecutive + backward_consecutive + forward_consecutive;
+
                 // blocked both side by Boundary or Opponent
                 if (backward_bound && forward_bound && (backward_count + forward_count <= WIN_LENGTH)) // WIN_LENGTH, because boundary counts start from 0;
                 {
                     return 0;
                 }
 
-                //// Maybe over 6 (WIN_LENGTH + 1, because counts start from 1) in the row
-                //if ( (!backward_bound && backward_count >= WIN_LENGTH && backward_empty < 2 && IsInCaroBoard(backward_r + dr, backward_c + dc) && currentBoard[backward_r + dr, backward_c + dc] == p) // + dr, dc
-                //    || (!forward_bound && forward_count >= WIN_LENGTH && forward_empty < 2 && IsInCaroBoard(forward_r - dr, forward_c - dc) && currentBoard[forward_r - dr, forward_c - dc] == p) ) // - dr, dc
-                //{
-                    
-                //    return 0;
-                //}
-
-
-                consecutive = backward_consecutive + forward_consecutive;
+                // Maybe over 6 (WIN_LENGTH + 1, because counts start from 1) in the row
+                if ((!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(backward_r + dr, backward_c + dc) && currentBoard[backward_r + dr, backward_c + dc] == p) // + dr, dc
+                    || (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(forward_r - dr, forward_c - dc) && currentBoard[forward_r - dr, forward_c - dc] == p)) // - dr, dc
+                {
+                    return 0;
+                }
 
                 /*
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
@@ -456,7 +457,12 @@ namespace Caro.NET
                     if (is_open)
                         return currentScores["FOUR_OPEN"] + 30 - 2 * (backward_empty + forward_empty);
                     else
-                        return currentScores["FOUR_CLOSED"] + 25 - 2 * (backward_empty + forward_empty);
+                    {
+                        if (backward_full_consecutive && forward_full_consecutive)
+                            return currentScores["FOUR_CLOSED"] + 25 - 2 * (backward_empty + forward_empty);
+                        else
+                            return currentScores["THREE_CLOSED"] + 18 - 2 * (backward_empty + forward_empty);
+                    }
                     //return ((!backward_bound || backward_empty > 0) && (!forward_bound || forward_empty > 0)) ? currentScores["FOUR_OPEN"] : currentScores["FOUR_CLOSED"];
                 }
                 else if (consecutive == 3)
@@ -517,20 +523,18 @@ namespace Caro.NET
             // 4. Calculate Block Score (based on opponent's potential, EXCLUDING FIVE)
             int blockScore = 0;
             // *** IMPORTANT: DO NOT check for >= FIVE here ***
-            //if (opponentPotentialScore >= currentScores["FOUR_OPEN"]) 
-            //    blockScore = currentScores["BLOCK_FOUR_OPEN"];
-            //else if (opponentPotentialScore >= currentScores["FOUR_CLOSED"]) 
-            //    blockScore = currentScores["BLOCK_FOUR_CLOSED"];
-            //else if (opponentPotentialScore >= currentScores["THREE_OPEN"]) 
-            //    blockScore = currentScores["BLOCK_THREE_OPEN"];
-            //else if (opponentPotentialScore >= currentScores["THREE_CLOSED"]) 
-            //    blockScore = currentScores["BLOCK_THREE_CLOSED"];
-            //else if (opponentPotentialScore >= currentScores["TWO_OPEN"]) 
-            //    blockScore = currentScores["BLOCK_TWO_OPEN"];
-            //else if (opponentPotentialScore >= currentScores["TWO_CLOSED"]) 
-            //    blockScore = currentScores["BLOCK_TWO_CLOSED"];
-
-            blockScore = opponentPotentialScore;
+            if (opponentPotentialScore >= currentScores["FOUR_OPEN"])
+                blockScore = currentScores["BLOCK_FOUR_OPEN"];
+            else if (opponentPotentialScore >= currentScores["FOUR_CLOSED"])
+                blockScore = currentScores["BLOCK_FOUR_CLOSED"];
+            else if (opponentPotentialScore >= currentScores["THREE_OPEN"])
+                blockScore = currentScores["BLOCK_THREE_OPEN"];
+            else if (opponentPotentialScore >= currentScores["THREE_CLOSED"])
+                blockScore = currentScores["BLOCK_THREE_CLOSED"];
+            else if (opponentPotentialScore >= currentScores["TWO_OPEN"])
+                blockScore = currentScores["BLOCK_TWO_OPEN"];
+            else if (opponentPotentialScore >= currentScores["TWO_CLOSED"])
+                blockScore = currentScores["BLOCK_TWO_CLOSED"];
 
             // 5. Combine scores: Offensive + Regular Blocking (non-FIVE) + Neutralization Bonus
             return playerScore + blockScore + neutralizeBonus;
