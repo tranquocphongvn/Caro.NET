@@ -312,6 +312,8 @@ namespace Caro.NET
                 // check it is first played
                 if (CaroBoard.FirstMoved == null)
                     CaroBoard.FirstMoved = caroMove.Value;
+                else if (CaroBoard.SecondMoved == null) // check it is second played
+                    CaroBoard.SecondMoved = caroMove.Value;
 
                 CaroBoard.PutValueIntoBoard(caroMove.Value.Cell.Row, caroMove.Value.Cell.Column, caroMove.Value.CaroValue);
 

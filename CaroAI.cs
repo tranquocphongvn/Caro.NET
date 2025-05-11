@@ -41,26 +41,26 @@ namespace Caro.NET
         // Includes NEUTRALIZE bonus for correctly double-blocking opponent threats
         private static readonly Dictionary<string, int> SCORE_AGGRESSIVE_V2 = new Dictionary<string, int>
         {
-            {"FIVE", 200000},        // Winning move score
+            {"FIVE", 200000},        // Winning move innerScore
             {"BLOCK_FIVE", 100000},   // Score for blocking opponent from forming 5 (even if not yet a winning 5)
 
-            // Bonus score for successfully double-blocking opponent's dangerous sequence
-            {"NEUTRALIZE_FOUR_BONUS", 30000}, // Must be significantly higher than BLOCK_FOUR_OPEN, Keep high for rewarding double-blocks
-            {"NEUTRALIZE_THREE_BONUS", 5000}, // Must be significantly higher than BLOCK_THREE_OPEN
+            // Bonus innerScore for successfully double-blocking opponent's dangerous sequence
+            //{"NEUTRALIZE_FOUR_BONUS", 30000}, // Must be significantly higher than BLOCK_FOUR_OPEN, Keep high for rewarding double-blocks
+            //{"NEUTRALIZE_THREE_BONUS", 5000}, // Must be significantly higher than BLOCK_THREE_OPEN
 
             {"FOUR_OPEN", 50000},      // Creating own open four remains very valuable, (_xxxx*_; _xxx*x_; _xx*xx_)
             {"BLOCK_FOUR_OPEN", 10000}, // Blocking one end of opponent's open four
 
-            {"THREE_OPEN", 2000}, // Keep offensive value high for now, (_*xxx*_ ; __xx*x__)
+            {"THREE_OPEN", 2010}, // Keep offensive value high for now, (_*xxx*_ ; __xx*x__)
             {"SEMI_THREE_OPEN", 1000}, // Keep offensive value high for now, (_xx_x*_)
-            {"BLOCK_THREE_OPEN", 1990},  // SIGNIFICANTLY INCREASED from 10000
+            {"BLOCK_THREE_OPEN", 2000},  // SIGNIFICANTLY INCREASED from 10000
 
             //{"THREE_OPEN", 50000},      // Creating own open three
             //{"BLOCK_THREE_OPEN", 10000}, // Blocking one end of opponent's open three
 
             // Other scores remain similar to the previous aggressive version
-            {"FOUR_CLOSED", 2010},     // Creating a closed four, (_*xxxxo  or  oxxxx*_)
-            {"BLOCK_FOUR_CLOSED", 5000},// Blocking opponent's closed four
+            {"FOUR_CLOSED", 2020},     // Creating a closed four, (_*xxxxo  or  oxxxx*_)
+            {"BLOCK_FOUR_CLOSED", 2005},// Blocking opponent's closed four
 
             {"THREE_CLOSED", 200},      // Creating a closed three , 150 => 300 , (_xxxo_  or o___xxx__)
             {"BLOCK_THREE_CLOSED", 190}, // Blocking opponent's closed three
@@ -222,7 +222,7 @@ namespace Caro.NET
 
         // --- Check Block both side by Boundary or Opponent ---
         /// <summary>
-        /// Calculates score for a line. Uses SCORE_AGGRESSIVE_V2.
+        /// Calculates innerScore for a line. Uses SCORE_AGGRESSIVE_V2.
         /// Check Block both side by Boundary or Opponent
         /// </summary>
         private bool BlockedBothByBoundaryOrOpponent(int[,] currentBoard, int row, int col, int dr, int dc, int player, int opponent)
@@ -284,19 +284,243 @@ namespace Caro.NET
             return false;
         }
 
+        private int ScoreLine(int[,] currentBoard, int row, int col, int dr, int dc, int player)
+        {
+            int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
+            var currentScores = SCORE_AGGRESSIVE_V2; // Use V2 scores with Neutralize bonus
+
+
+            //================= Begin of CountAndScoreSequence ==============
+            // Helper: CountAndScoreSequence (Same as before - calculates innerScore for a single player's sequence)
+            int CountAndScoreSequence(int r, int c, int p)
+            {
+                int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
+                int main_count = 1; // start from 1 ..._XXXXO ; max = WIN_LENGTH, dont count itself
+
+                bool backward_bound = false;
+                bool forward_bound = false;
+
+                int maxScore = 0;
+                // Count backwards & forwards
+                while (main_count < WIN_LENGTH && (!backward_bound || !forward_bound))
+                {
+                    int innerScore = 0;
+                    int consecutive = 0; // (currentBoard[r, c] == p)? 1 : 0;
+
+                    // Check backwards
+                    // for backward
+                    int backward_r = row - dr; int backward_c = col - dc;
+                    int backward_count = 1; // start from 1, because the backward_r = row - dr; backward_c = col - dc, above
+                    //bool backward_bound = IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't main_count
+                    int backward_empty = 0;
+                    int backward_consecutive = 0;
+                    bool backward_full_consecutive = true;
+                    int[] backward_pattern = new int[WIN_LENGTH + 1];
+
+                    do
+                    {
+                        backward_bound = backward_bound || IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't main_count
+                        if (backward_bound || currentBoard[backward_r, backward_c] == otherPlayer) // blocked by Boundary or Opponent, dont need check cell value
+                        {
+                            backward_bound = true; // dont need check backward anymore
+                            backward_pattern[WIN_LENGTH - backward_count] = otherPlayer;
+                        }
+                        else
+                        {
+                            if (currentBoard[backward_r, backward_c] == p)
+                            {
+                                backward_full_consecutive = backward_full_consecutive && (backward_empty == 0);
+                                backward_consecutive++;
+                                backward_pattern[WIN_LENGTH - backward_count] = p;
+                            }
+                            else if (currentBoard[backward_r, backward_c] == EMPTY_CELL)
+                            {
+                                backward_empty++;
+                                backward_pattern[WIN_LENGTH - backward_count] = EMPTY_CELL;
+                            }
+
+                            // increase the counter for backward
+                            backward_count++;
+                            backward_r -= dr; backward_c -= dc;
+                        }
+                    } while (backward_count <= main_count && !backward_bound);
+
+
+                    // Check forwards
+                    // for forward
+                    int forward_r = row + dr; int forward_c = col + dc;
+                    int forward_count = 1; // start from 1, because the forward_r = row + dr; forward_c = col + dc, above
+                    //bool forward_bound = IsOutOfCaroBoard(forward_r, forward_c); // forward boundary is out of the board, don't main_count
+                    int forward_empty = 0;
+                    int forward_consecutive = 0;
+                    bool forward_full_consecutive = true;
+                    int[] forward_pattern = new int[WIN_LENGTH + 1];
+                    do
+                    {
+                        forward_bound = forward_bound || IsOutOfCaroBoard(forward_r, forward_c); ; // forward boundary is out of the board, don't main_count
+                        if (forward_bound || currentBoard[forward_r, forward_c] == otherPlayer) // blocked by Boundary or Opponent, dont need check cell value
+                        {
+                            forward_bound = true; // dont need check forward anymore
+                            forward_pattern[forward_count] = otherPlayer;
+                        }
+                        else
+                        {
+                            if (currentBoard[forward_r, forward_c] == p)
+                            {
+                                forward_full_consecutive = forward_full_consecutive && (forward_empty == 0);
+                                forward_consecutive++; // consecutive++;
+                                forward_pattern[forward_count] = p;
+                            }
+                            else if (currentBoard[forward_r, forward_c] == EMPTY_CELL)
+                            {
+                                forward_empty++;
+                                forward_pattern[forward_count] = EMPTY_CELL;
+                            }
+                            // increase the counter for forward
+                            forward_count++;
+                            forward_r += dr; forward_c += dc;
+                        }
+                    } while (forward_count <= (WIN_LENGTH - main_count) && !forward_bound);
+
+
+                    backward_full_consecutive = backward_full_consecutive || backward_consecutive == 0;
+                    forward_full_consecutive = forward_full_consecutive || forward_consecutive == 0;
+
+                    consecutive = backward_consecutive + forward_consecutive;
+
+                    // blocked both side by Boundary or Opponent
+                    if (backward_bound && forward_bound && (backward_count + forward_count <= WIN_LENGTH)) // WIN_LENGTH, because boundary counts start from 0;
+                    {
+                        // do nothing
+                    }
+                    else if (consecutive > WIN_LENGTH)
+                    {
+                        // do nothing
+                    }
+                    else if ((!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(backward_r + dr, backward_c + dc) && currentBoard[backward_r + dr, backward_c + dc] == p) // + dr, dc
+                        || (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(forward_r - dr, forward_c - dc) && currentBoard[forward_r - dr, forward_c - dc] == p)) // - dr, dc
+                    {
+                        // Maybe over 6 (WIN_LENGTH + 1, because counts start from 1) in the row
+                        // do nothing
+                    }
+                    else if (consecutive == WIN_LENGTH)
+                    {
+                        return currentScores["FIVE"];
+                    }
+                    else
+                    { 
+                        bool is_open = (!backward_bound && !forward_bound);
+                        if (consecutive == 4)
+                        {
+                            if (is_open)
+                            {
+                                innerScore = currentScores["FOUR_OPEN"] + 30 - 2 * (backward_empty + forward_empty);
+                            }
+
+                            else
+                            {
+                                if (backward_full_consecutive && forward_full_consecutive)
+                                    innerScore = currentScores["FOUR_CLOSED"] + 25 - 2 * (backward_empty + forward_empty);
+                                else
+                                    innerScore = currentScores["THREE_CLOSED"] + 18 - 2 * (backward_empty + forward_empty);
+                            }
+                        }
+                        else if (consecutive == 3)
+                        {
+                            if (is_open)
+                            {
+                                if (backward_full_consecutive && forward_full_consecutive)
+                                    innerScore = currentScores["THREE_OPEN"] + 25 - 2 * (backward_empty + forward_empty);
+                                else
+                                    innerScore = currentScores["SEMI_THREE_OPEN"] + 20 - 2 * (backward_empty + forward_empty);
+                            }
+                            else
+                                innerScore = currentScores["THREE_CLOSED"] + 18 - 2 * (backward_empty + forward_empty);
+                        }
+                        else if (consecutive == 2)
+                        {
+                            if (is_open)
+                            {
+                                if (backward_full_consecutive && forward_full_consecutive)
+                                    innerScore = currentScores["TWO_OPEN"] + 12 - (backward_empty + forward_empty);
+                                else
+                                    innerScore = currentScores["SEMI_TWO_OPEN"] + 12 - (backward_empty + forward_empty);
+                            }
+                            else
+                                innerScore = currentScores["TWO_CLOSED"] + 12 - (backward_empty + forward_empty);
+                        }
+                        else if (consecutive == 1)
+                        {
+                            innerScore = (is_open) ? currentScores["ONE_OPEN"] : currentScores["ONE_CLOSED"];
+                        }
+                    }
+
+                    if (innerScore > maxScore)
+                        maxScore = innerScore;
+
+                    // increase the main counter
+                    main_count++;
+                }
+                return maxScore;
+            }
+            //================= End of CountAndScoreSequence ==============
+
+            bool showEvaluateScore = StopHereForDebugging(row, col, player);
+
+            int playerScore = 0;
+            int neutralizeBonus = 0;
+            //if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, player, opponent))
+            //{
+            // 1. Calculate offensive innerScore (for player)
+            playerScore = CountAndScoreSequence(row, col, player);
+            // Check for immediate player win - return highest innerScore if found
+            if (playerScore >= currentScores["FIVE"])
+                return currentScores["FIVE"];
+
+            // 3. Calculate Neutralize Bonus (using the corrected logic)
+            //neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
+            //}
+
+            // 2. Calculate opponent's potential innerScore if they played here
+            currentBoard[row, col] = opponent;
+            //int opponentPotentialScore = 0;
+            //if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, opponent, player))
+            int opponentPotentialScore = CountAndScoreSequence(row, col, opponent);
+            currentBoard[row, col] = player; // Restore player's piece
+
+            // 4. Calculate Block Score (based on opponent's potential, EXCLUDING FIVE)
+            int blockScore = 0;
+            // *** IMPORTANT: DO NOT check for >= FIVE here ***
+            if (opponentPotentialScore >= currentScores["FOUR_OPEN"])
+                blockScore = currentScores["BLOCK_FOUR_OPEN"];
+            else if (opponentPotentialScore >= currentScores["FOUR_CLOSED"])
+                blockScore = currentScores["BLOCK_FOUR_CLOSED"];
+            else if (opponentPotentialScore >= currentScores["THREE_OPEN"])
+                blockScore = currentScores["BLOCK_THREE_OPEN"];
+            else if (opponentPotentialScore >= currentScores["THREE_CLOSED"])
+                blockScore = currentScores["BLOCK_THREE_CLOSED"];
+            else if (opponentPotentialScore >= currentScores["TWO_OPEN"])
+                blockScore = currentScores["BLOCK_TWO_OPEN"];
+            else if (opponentPotentialScore >= currentScores["TWO_CLOSED"])
+                blockScore = currentScores["BLOCK_TWO_CLOSED"];
+
+            // 5. Combine scores: Offensive + Regular Blocking (non-FIVE) + Neutralization Bonus
+            return playerScore + blockScore + neutralizeBonus;
+        }
+
 
         // --- ScoreLine V3 (No Early BLOCK_FIVE Return) ---
-        /// <summary>
-        /// Calculates score for a line. Uses SCORE_AGGRESSIVE_V2.
-        /// **REMOVED** the early return for BLOCK_FIVE. Includes Neutralize Bonus logic.
-        /// Assumes player's piece IS tentatively placed before calling.
-        /// </summary>
+            /// <summary>
+            /// Calculates innerScore for a line. Uses SCORE_AGGRESSIVE_V2.
+            /// **REMOVED** the early return for BLOCK_FIVE. Includes Neutralize Bonus logic.
+            /// Assumes player's piece IS tentatively placed before calling.
+            /// </summary>
         private int ScoreLine_V3_Final(int[,] currentBoard, int row, int col, int dr, int dc, int player)
         {
             int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
             var currentScores = SCORE_AGGRESSIVE_V2; // Use V2 scores with Neutralize bonus
 
-            // Helper: CountAndScoreSequence (Same as before - calculates score for a single player's sequence)
+            // Helper: CountAndScoreSequence (Same as before - calculates innerScore for a single player's sequence)
             int CountAndScoreSequence(int r, int c, int p)
             {
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
@@ -308,7 +532,6 @@ namespace Caro.NET
                 int backward_count = 0; // start from 1
                 bool backward_bound = IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't main_count
                 int backward_empty = 0;
-                int backward_empty_consecutive = 0;
                 int backward_consecutive = 0;
                 bool backward_full_consecutive = true;
                 int[] backward_pattern = new int[WIN_LENGTH + 1];
@@ -318,7 +541,6 @@ namespace Caro.NET
                 int forward_count = 0; // start from 1
                 bool forward_bound = IsOutOfCaroBoard(forward_r, forward_c); // forward boundary is out of the board, don't main_count
                 int forward_empty = 0;
-                int forward_empty_consecutive = 0;
                 int forward_consecutive = 0;
                 bool forward_full_consecutive = true;
                 int[] forward_pattern = new int[WIN_LENGTH + 1];
@@ -455,7 +677,10 @@ namespace Caro.NET
                 else if (consecutive == 4)
                 {
                     if (is_open)
+                    {
                         return currentScores["FOUR_OPEN"] + 30 - 2 * (backward_empty + forward_empty);
+                    }
+                        
                     else
                     {
                         if (backward_full_consecutive && forward_full_consecutive)
@@ -503,9 +728,9 @@ namespace Caro.NET
             int neutralizeBonus = 0;
             //if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, player, opponent))
             //{
-            // 1. Calculate offensive score (for player)
+            // 1. Calculate offensive innerScore (for player)
             playerScore = CountAndScoreSequence(row, col, player);
-            // Check for immediate player win - return highest score if found
+            // Check for immediate player win - return highest innerScore if found
             if (playerScore >= currentScores["FIVE"])
                 return currentScores["FIVE"];
 
@@ -513,7 +738,7 @@ namespace Caro.NET
             //neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
             //}
 
-            // 2. Calculate opponent's potential score if they played here
+            // 2. Calculate opponent's potential innerScore if they played here
             currentBoard[row, col] = opponent;
             //int opponentPotentialScore = 0;
             //if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, opponent, player))
@@ -544,7 +769,7 @@ namespace Caro.NET
 
         // --- Updated EvaluateCell (V3 - Calls Corrected ScoreLine) ---
         /// <summary>
-        /// Calculates the total score for placing 'player's piece at (row, col).
+        /// Calculates the total innerScore for placing 'player's piece at (row, col).
         /// Calls the corrected ScoreLine_V3_Final.
         /// </summary>
         private int EvaluateCell_V3_Final(int[,] currentBoard, int row, int col, int player)
@@ -556,7 +781,7 @@ namespace Caro.NET
             foreach (var dir in directions)
             {
                 // *** CALL FINAL V3 of scoreLine (No Early Return version) ***
-                totalScore += ScoreLine_V3_Final(currentBoard, row, col, dir.dr, dir.dc, player);
+                totalScore += ScoreLine(currentBoard, row, col, dir.dr, dir.dc, player);
             }
             currentBoard[row, col] = EMPTY_CELL; // Revert board
             // Add center bonus
@@ -782,7 +1007,7 @@ namespace Caro.NET
                             }
                             if (finalBestBlock.HasValue)
                             {
-                                Debug.WriteLine($"AI V6 Lookahead: Chose safe block {finalBestBlock.Value} with eval score {bestEvalScore}");
+                                Debug.WriteLine($"AI V6 Lookahead: Chose safe block {finalBestBlock.Value} with eval innerScore {bestEvalScore}");
                                 return finalBestBlock.Value;
                             }
                             else
@@ -839,7 +1064,7 @@ namespace Caro.NET
             if (bestHeuristicMove.HasValue)
             {
                 string scoreString = (bestHeuristicScore != int.MinValue) ? bestHeuristicScore.ToString() : "N/A";
-                Debug.WriteLine($"AI V6 Lookahead: Chosen heuristic move: {bestHeuristicMove.Value} with score: {scoreString}");
+                Debug.WriteLine($"AI V6 Lookahead: Chosen heuristic move: {bestHeuristicMove.Value} with innerScore: {scoreString}");
             }
             else
             {
@@ -867,6 +1092,6 @@ namespace Caro.NET
 //1.  * *`SCORE_AGGRESSIVE_V2`**: Introduced with `NEUTRALIZE_FOUR_BONUS` and `NEUTRALIZE_THREE_BONUS`.
 //2.  **`ScoreLine_V2`**: Replaces `scoreLine`. Contains the core logic change, including the `CheckNeutralizeBonus` helper function to add bonus points when a move successfully double-blocks an opponent's sequence of 3 or 4.
 //3.  **`EvaluateCell_V2`**: Replaces `evaluateCell`. Its only change is that it now calls `ScoreLine_V2`.
-//4.  **`FindBestMoveAggressive`**: Replaces `findBestMoveAggressive`. It now calls `EvaluateCell_V2`. The explicit, separate step for checking and blocking opponent's open fours (`FindAndEvaluateForcedBlock`) has been removed, as the improved `EvaluateCell_V2` (thanks to `ScoreLine_V2`) should now correctly assign a higher score to the proper neutralizing block, making the separate check redundant.
+//4.  **`FindBestMoveAggressive`**: Replaces `findBestMoveAggressive`. It now calls `EvaluateCell_V2`. The explicit, separate step for checking and blocking opponent's open fours (`FindAndEvaluateForcedBlock`) has been removed, as the improved `EvaluateCell_V2` (thanks to `ScoreLine_V2`) should now correctly assign a higher innerScore to the proper neutralizing block, making the separate check redundant.
 
 //Remember to update your game logic to use `FindBestMoveAggressive_V2` and ensure the `CaroAI` class uses the `SCORE_AGGRESSIVE_V2` tab
