@@ -104,7 +104,7 @@ namespace Caro.NET
         }
         public static string CaroValueToText(int caroValue)
         {
-            return caroValue == Utils.CARO_X ? "X" : (caroValue == Utils.CARO_O ? "O" : "[Empty]");
+            return caroValue == Utils.CARO_X ? "X" : (caroValue == Utils.CARO_O ? "O" : "_");
         }
 
     }

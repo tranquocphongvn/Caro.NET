@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics; // For Stopwatch (optional timing)
 using System.Diagnostics.Eventing.Reader;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks; // For asynchronous AI move trigger
 
 
@@ -41,15 +42,15 @@ namespace Caro.NET
         // Includes NEUTRALIZE bonus for correctly double-blocking opponent threats
         private static readonly Dictionary<string, int> SCORE_AGGRESSIVE_V2 = new Dictionary<string, int>
         {
-            {"FIVE", 200000},        // Winning move innerScore
-            {"BLOCK_FIVE", 100000},   // Score for blocking opponent from forming 5 (even if not yet a winning 5)
+            {"FIVE", 300000},        // Winning move innerScore
+            {"BLOCK_FIVE", 150000},   // Score for blocking opponent from forming 5 (even if not yet a winning 5)
 
             // Bonus innerScore for successfully double-blocking opponent's dangerous sequence
             //{"NEUTRALIZE_FOUR_BONUS", 30000}, // Must be significantly higher than BLOCK_FOUR_OPEN, Keep high for rewarding double-blocks
             //{"NEUTRALIZE_THREE_BONUS", 5000}, // Must be significantly higher than BLOCK_THREE_OPEN
 
-            {"FOUR_OPEN", 50000},      // Creating own open four remains very valuable, (_xxxx*_; _xxx*x_; _xx*xx_)
-            {"BLOCK_FOUR_OPEN", 10000}, // Blocking one end of opponent's open four
+            {"FOUR_OPEN", 20100},      // Creating own open four remains very valuable, (_xxxx*_; _xxx*x_; _xx*xx_)
+            {"BLOCK_FOUR_OPEN", 20000}, // Blocking one end of opponent's open four
 
             {"THREE_OPEN", 2010}, // Keep offensive value high for now, (_*xxx*_ ; __xx*x__)
             {"SEMI_THREE_OPEN", 1000}, // Keep offensive value high for now, (_xx_x*_)
@@ -301,21 +302,26 @@ namespace Caro.NET
                 bool forward_bound = false;
 
                 int maxScore = 0;
+
+                Dictionary<string, int> evaluteValues = new Dictionary<string, int>();
+
+
                 // Count backwards & forwards
-                while (main_count < WIN_LENGTH && (!backward_bound || !forward_bound))
+                while (main_count <= WIN_LENGTH && (!backward_bound || !forward_bound))
                 {
                     int innerScore = 0;
-                    int consecutive = 0; // (currentBoard[r, c] == p)? 1 : 0;
+                    int consecutive = 0;
 
                     // Check backwards
                     // for backward
                     int backward_r = row - dr; int backward_c = col - dc;
                     int backward_count = 1; // start from 1, because the backward_r = row - dr; backward_c = col - dc, above
-                    //bool backward_bound = IsOutOfCaroBoard(backward_r, backward_c); // backward boundary is out of the board, don't main_count
                     int backward_empty = 0;
                     int backward_consecutive = 0;
                     bool backward_full_consecutive = true;
-                    int[] backward_pattern = new int[WIN_LENGTH + 1];
+                    //backward_bound = false; // backward boundary is out of the board, don't main_count
+
+                    int[] backward_pattern = new int[WIN_LENGTH];
 
                     do
                     {
@@ -343,25 +349,27 @@ namespace Caro.NET
                             backward_count++;
                             backward_r -= dr; backward_c -= dc;
                         }
-                    } while (backward_count <= main_count && !backward_bound);
-
+                    }
+                    while (backward_count <= main_count && !backward_bound);
 
                     // Check forwards
                     // for forward
                     int forward_r = row + dr; int forward_c = col + dc;
                     int forward_count = 1; // start from 1, because the forward_r = row + dr; forward_c = col + dc, above
-                    //bool forward_bound = IsOutOfCaroBoard(forward_r, forward_c); // forward boundary is out of the board, don't main_count
                     int forward_empty = 0;
                     int forward_consecutive = 0;
                     bool forward_full_consecutive = true;
-                    int[] forward_pattern = new int[WIN_LENGTH + 1];
+                    //forward_bound = false;
+
+                    int[] forward_pattern = new int[WIN_LENGTH];
+
                     do
                     {
-                        forward_bound = forward_bound || IsOutOfCaroBoard(forward_r, forward_c); ; // forward boundary is out of the board, don't main_count
+                        forward_bound = forward_bound || IsOutOfCaroBoard(forward_r, forward_c); // forward boundary is out of the board, don't main_count
                         if (forward_bound || currentBoard[forward_r, forward_c] == otherPlayer) // blocked by Boundary or Opponent, dont need check cell value
                         {
                             forward_bound = true; // dont need check forward anymore
-                            forward_pattern[forward_count] = otherPlayer;
+                            forward_pattern[forward_count - 1] = otherPlayer;
                         }
                         else
                         {
@@ -369,43 +377,48 @@ namespace Caro.NET
                             {
                                 forward_full_consecutive = forward_full_consecutive && (forward_empty == 0);
                                 forward_consecutive++; // consecutive++;
-                                forward_pattern[forward_count] = p;
+                                forward_pattern[forward_count - 1] = p;
                             }
                             else if (currentBoard[forward_r, forward_c] == EMPTY_CELL)
                             {
                                 forward_empty++;
-                                forward_pattern[forward_count] = EMPTY_CELL;
+                                forward_pattern[forward_count - 1] = EMPTY_CELL;
                             }
                             // increase the counter for forward
                             forward_count++;
                             forward_r += dr; forward_c += dc;
                         }
-                    } while (forward_count <= (WIN_LENGTH - main_count) && !forward_bound);
+                    }
+                    while (forward_count <= (WIN_LENGTH - main_count + 1) && !forward_bound);
 
 
                     backward_full_consecutive = backward_full_consecutive || backward_consecutive == 0;
                     forward_full_consecutive = forward_full_consecutive || forward_consecutive == 0;
 
-                    consecutive = backward_consecutive + forward_consecutive;
+                    consecutive = backward_consecutive + forward_consecutive + ((currentBoard[r, c] == p) ? 1 : 0);
 
                     // blocked both side by Boundary or Opponent
-                    if (backward_bound && forward_bound && (backward_count + forward_count <= WIN_LENGTH)) // WIN_LENGTH, because boundary counts start from 0;
+                    if (backward_bound && forward_bound && (backward_count + forward_count <= WIN_LENGTH + 1)) // WIN_LENGTH + 1, because boundary counts start from 1;
                     {
-                        // do nothing
+                        // dont calculate any more
+                        return 0;
                     }
                     else if (consecutive > WIN_LENGTH)
                     {
-                        // do nothing
+                        // dont calculate any more
+                        return 0;
                     }
-                    else if ((!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(backward_r + dr, backward_c + dc) && currentBoard[backward_r + dr, backward_c + dc] == p) // + dr, dc
-                        || (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(forward_r - dr, forward_c - dc) && currentBoard[forward_r - dr, forward_c - dc] == p)) // - dr, dc
+                    else if ((!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(backward_r, backward_c) && currentBoard[backward_r, backward_c] == p) // + dr, dc
+                        || (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(forward_r, forward_c) && currentBoard[forward_r, forward_c] == p)) // - dr, dc
                     {
                         // Maybe over 6 (WIN_LENGTH + 1, because counts start from 1) in the row
-                        // do nothing
+                        // dont calculate any more
+                        return 0;
                     }
                     else if (consecutive == WIN_LENGTH)
                     {
-                        return currentScores["FIVE"];
+                        // max value
+                        innerScore = currentScores["FIVE"];
                     }
                     else
                     { 
@@ -455,6 +468,10 @@ namespace Caro.NET
                         }
                     }
 
+                    string key = $"{ConvertArray2String(backward_pattern, forward_pattern)}:{main_count}:{backward_count}:{forward_count}";
+                    if (!evaluteValues.ContainsKey(key))
+                        evaluteValues.Add(key, innerScore);
+
                     if (innerScore > maxScore)
                         maxScore = innerScore;
 
@@ -465,20 +482,20 @@ namespace Caro.NET
             }
             //================= End of CountAndScoreSequence ==============
 
-            bool showEvaluateScore = StopHereForDebugging(row, col, player);
+            bool showEvaluateScore = StopHereForDebugging(row, col, player, dr, dc);
 
             int playerScore = 0;
             int neutralizeBonus = 0;
             //if (!BlockedBothByBoundaryOrOpponent(currentBoard, row, col, dr, dc, player, opponent))
             //{
-            // 1. Calculate offensive innerScore (for player)
-            playerScore = CountAndScoreSequence(row, col, player);
-            // Check for immediate player win - return highest innerScore if found
-            if (playerScore >= currentScores["FIVE"])
-                return currentScores["FIVE"];
+            //    // 1. Calculate offensive innerScore (for player)
+                playerScore = CountAndScoreSequence(row, col, player);
+                // Check for immediate player win - return highest innerScore if found
+                if (playerScore >= currentScores["FIVE"])
+                    return currentScores["FIVE"];
 
-            // 3. Calculate Neutralize Bonus (using the corrected logic)
-            //neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
+                // 3. Calculate Neutralize Bonus (using the corrected logic)
+                //neutralizeBonus = CalculateNeutralizeBonus_V2(currentBoard, row, col, dr, dc, player, opponent, currentScores);
             //}
 
             // 2. Calculate opponent's potential innerScore if they played here
@@ -843,9 +860,19 @@ namespace Caro.NET
             return max_bonus;
         }
 
+        private bool StopHereForDebugging(int row, int column, int player, int dr, int dc)
+        {
+            if ((row == 10 && column == 10 && dc == 1) || (row == 10 && column == 11 && dc == 1))
+            {
+                Debug.WriteLine("Warning: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, column);
+                return true;
+            }
+            return false;
+        }
+
         private bool StopHereForDebugging(int row, int column, int player)
         {
-            if ((row == 5 && column == 6) || (row == 5 && column == 10))
+            if ((row == 12 && column == 16) || (row == 14 && column == 14))
             {
                 Debug.WriteLine("Warning: STOP HERE for DEBUGGING... Row:{0}, Column:{1}", row, column);
                 return true;
@@ -856,6 +883,20 @@ namespace Caro.NET
         private bool StopHereForDebugging(Move move, int player)
         {
             return StopHereForDebugging(move.Row, move.Col, player);
+        }
+
+
+        private string ConvertArray2String(int[] backwards, int[] forwards)
+        {
+            StringBuilder str = new StringBuilder();
+            for (int i = 0; i < backwards.Length; i++)
+                str.Append(Utils.CaroValueToText(backwards[i]));
+
+            str.Append("*");
+            for (int i = 0; i < forwards.Length; i++)
+                str.Append(Utils.CaroValueToText(forwards[i]));
+
+            return str.ToString().Trim("_".ToCharArray());
         }
 
         /// <summary>
