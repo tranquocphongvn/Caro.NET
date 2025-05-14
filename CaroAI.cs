@@ -295,6 +295,8 @@ namespace Caro.NET
             // Helper: CountAndScoreSequence (Same as before - calculates innerScore for a single player's sequence)
             int CountAndScoreSequence(int r, int c, int p)
             {
+                const int BLOCKED_SCORE = -1000;
+                
                 int otherPlayer = (p == PLAYER_X) ? PLAYER_O : PLAYER_X;
                 int main_count = 1; // start from 1 ..._XXXXO ; max = WIN_LENGTH, dont count itself
 
@@ -322,6 +324,7 @@ namespace Caro.NET
                     //backward_bound = false; // backward boundary is out of the board, don't main_count
 
                     int[] backward_pattern = new int[WIN_LENGTH];
+                    Array.Fill(backward_pattern, -1);
 
                     do
                     {
@@ -362,6 +365,7 @@ namespace Caro.NET
                     //forward_bound = false;
 
                     int[] forward_pattern = new int[WIN_LENGTH];
+                    Array.Fill(forward_pattern, -1);
 
                     do
                     {
@@ -397,31 +401,44 @@ namespace Caro.NET
 
                     consecutive = backward_consecutive + forward_consecutive + ((currentBoard[r, c] == p) ? 1 : 0);
 
+                    string key = $"[{ConvertArray2String(backward_pattern, forward_pattern, currentBoard[r, c])}]:{main_count}:{backward_count}:{forward_count}";
+
                     // blocked both side by Boundary or Opponent
                     if (backward_bound && forward_bound && (backward_count + forward_count <= WIN_LENGTH + 1)) // WIN_LENGTH + 1, because boundary counts start from 1;
                     {
                         // dont calculate any more
-                        return 0;
+                        innerScore = BLOCKED_SCORE;
+                        //return 0;
                     }
                     else if (consecutive > WIN_LENGTH)
                     {
                         // dont calculate any more
-                        return 0;
-                    }
-                    else if ((!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(backward_r, backward_c) && currentBoard[backward_r, backward_c] == p) // + dr, dc
-                        || (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(forward_r, forward_c) && currentBoard[forward_r, forward_c] == p)) // - dr, dc
-                    {
-                        // Maybe over 6 (WIN_LENGTH + 1, because counts start from 1) in the row
-                        // dont calculate any more
-                        return 0;
+                        innerScore = BLOCKED_SCORE;
+                        //return 0;
                     }
                     else if (consecutive == WIN_LENGTH)
                     {
                         // max value
                         innerScore = currentScores["FIVE"];
                     }
+                    else if (backward_count + forward_count <= WIN_LENGTH + 1)
+                    {
+                        // not enough a streak, dont evaluate
+                        innerScore = 0; // continue
+                        //Debug.WriteLine($"{r}:{c}:[{key}]");
+                    }
                     else
-                    { 
+                    {
+                        // Maybe over 6 (WIN_LENGTH + 1, because counts start from 1) in the row
+                        if (!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(backward_r + dr, backward_c + dc) && currentBoard[backward_r + dr, backward_c + dc] == p) // + dr, dc
+                        {
+                            backward_bound = true;
+                        }
+                        else if (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(forward_r - dr, forward_c - dc) && currentBoard[forward_r - dr, forward_c - dc] == p) // - dr, dc
+                        {
+                            forward_bound = true;
+                        }
+
                         bool is_open = (!backward_bound && !forward_bound);
                         if (consecutive == 4)
                         {
@@ -468,15 +485,21 @@ namespace Caro.NET
                         }
                     }
 
-                    string key = $"{ConvertArray2String(backward_pattern, forward_pattern)}:{main_count}:{backward_count}:{forward_count}";
-                    if (!evaluteValues.ContainsKey(key))
-                        evaluteValues.Add(key, innerScore);
-
-                    if (innerScore > maxScore)
+                    if (innerScore == BLOCKED_SCORE || innerScore > maxScore)
                         maxScore = innerScore;
 
                     // increase the main counter
                     main_count++;
+
+                    if (backward_count + forward_count > WIN_LENGTH + 1)
+                    {
+                        //string key = $"[{ConvertArray2String(backward_pattern, forward_pattern, currentBoard[r, c])}]:{main_count}:{backward_count}:{forward_count}";
+                        if (!evaluteValues.ContainsKey(key))
+                            evaluteValues.Add(key, innerScore);
+
+                        if (innerScore >= currentScores["BLOCK_THREE_OPEN"])
+                            ; // stop here for debug
+                    }
                 }
                 return maxScore;
             }
@@ -886,17 +909,27 @@ namespace Caro.NET
         }
 
 
-        private string ConvertArray2String(int[] backwards, int[] forwards)
+        private string ConvertArray2String(int[] backwards, int[] forwards, int caroValue)
         {
             StringBuilder str = new StringBuilder();
             for (int i = 0; i < backwards.Length; i++)
-                str.Append(Utils.CaroValueToText(backwards[i]));
+            {
+                if (backwards[i] != -1)
+                    str.Append(backwards[i] == Utils.CARO_X ? 'x' : (backwards[i] == Utils.CARO_O ? 'o' : '-'));
+                else
+                    str.Append('_');
+            }
 
-            str.Append("*");
+            str.Append(caroValue == Utils.CARO_X ? 'X' : (caroValue == Utils.CARO_O ? 'O' : '*'));
+
             for (int i = 0; i < forwards.Length; i++)
-                str.Append(Utils.CaroValueToText(forwards[i]));
-
-            return str.ToString().Trim("_".ToCharArray());
+            {
+                if (forwards[i] != -1)
+                    str.Append(forwards[i] == Utils.CARO_X ? 'x' : (forwards[i] == Utils.CARO_O ? 'o' : '-'));
+                else 
+                    str.Append('_');
+            }
+            return str.ToString().Trim('_');
         }
 
         /// <summary>
