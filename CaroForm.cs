@@ -496,7 +496,7 @@ namespace Caro.NET
             }
             else
             {
-                Move? aiMove = caroAI.FindBestMoveAggressive_V6_Lookahead(chessBoard, opponentCaroValue);
+                Move? aiMove = caroAI.FindBestMoveAggressive(chessBoard, opponentCaroValue);
                 //Move? aiMove = caroAIMinimax.FindBestMove(chessBoard, Utils.CARO_X, 3);
                 if (aiMove != null)
                 {

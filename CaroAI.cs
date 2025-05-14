@@ -40,7 +40,7 @@ namespace Caro.NET
 
         // --- 2. Score Table for Aggressive AI (Version 2) ---
         // Includes NEUTRALIZE bonus for correctly double-blocking opponent threats
-        private static readonly Dictionary<string, int> SCORE_AGGRESSIVE_V2 = new Dictionary<string, int>
+        private static readonly Dictionary<string, int> SCORE_AGGRESSIVE = new Dictionary<string, int>
         {
             {"FIVE", 300000},        // Winning move innerScore
             {"BLOCK_FIVE", 150000},   // Score for blocking opponent from forming 5 (even if not yet a winning 5)
@@ -223,7 +223,7 @@ namespace Caro.NET
 
         // --- Check Block both side by Boundary or Opponent ---
         /// <summary>
-        /// Calculates innerScore for a line. Uses SCORE_AGGRESSIVE_V2.
+        /// Calculates innerScore for a line. Uses SCORE_AGGRESSIVE.
         /// Check Block both side by Boundary or Opponent
         /// </summary>
         private bool BlockedBothByBoundaryOrOpponent(int[,] currentBoard, int row, int col, int dr, int dc, int player, int opponent)
@@ -288,7 +288,7 @@ namespace Caro.NET
         private int ScoreLine(int[,] currentBoard, int row, int col, int dr, int dc, int player)
         {
             int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
-            var currentScores = SCORE_AGGRESSIVE_V2; // Use V2 scores with Neutralize bonus
+            var currentScores = SCORE_AGGRESSIVE; // Use V2 scores with Neutralize bonus
 
 
             //================= Begin of CountAndScoreSequence ==============
@@ -551,14 +551,14 @@ namespace Caro.NET
 
         // --- ScoreLine V3 (No Early BLOCK_FIVE Return) ---
             /// <summary>
-            /// Calculates innerScore for a line. Uses SCORE_AGGRESSIVE_V2.
+            /// Calculates innerScore for a line. Uses SCORE_AGGRESSIVE.
             /// **REMOVED** the early return for BLOCK_FIVE. Includes Neutralize Bonus logic.
             /// Assumes player's piece IS tentatively placed before calling.
             /// </summary>
         private int ScoreLine_V3_Final(int[,] currentBoard, int row, int col, int dr, int dc, int player)
         {
             int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
-            var currentScores = SCORE_AGGRESSIVE_V2; // Use V2 scores with Neutralize bonus
+            var currentScores = SCORE_AGGRESSIVE; // Use V2 scores with Neutralize bonus
 
             // Helper: CountAndScoreSequence (Same as before - calculates innerScore for a single player's sequence)
             int CountAndScoreSequence(int r, int c, int p)
@@ -812,7 +812,7 @@ namespace Caro.NET
         /// Calculates the total innerScore for placing 'player's piece at (row, col).
         /// Calls the corrected ScoreLine_V3_Final.
         /// </summary>
-        private int EvaluateCell_V3_Final(int[,] currentBoard, int row, int col, int player)
+        private int EvaluateCell(int[,] currentBoard, int row, int col, int player)
         {
             if (currentBoard[row, col] != EMPTY_CELL) return int.MinValue;
             int totalScore = 0;
@@ -938,7 +938,7 @@ namespace Caro.NET
         /// multiple critical blocking moves to ensure the chosen block doesn't
         /// lead to an immediate loss on the opponent's next turn.
         /// </summary>
-        public Move? FindBestMoveAggressive_V6_Lookahead(int[,] currentBoard, int player)
+        public Move? FindBestMoveAggressive(int[,] currentBoard, int player)
         {
             int opponent = (player == PLAYER_X) ? PLAYER_O : PLAYER_X;
             var _random = new Random();
@@ -1067,7 +1067,7 @@ namespace Caro.NET
                             foreach (var safeMove in safeBlockingMoves)
                             {
                                 // Use the latest EvaluateCell (V3_Final, which calls ScoreLine_V3_Final with no early return)
-                                int evalScore = EvaluateCell_V3_Final(currentBoard, safeMove.Row, safeMove.Col, player);
+                                int evalScore = EvaluateCell(currentBoard, safeMove.Row, safeMove.Col, player);
                                 Debug.WriteLine($"     - Evaluating safe block {safeMove}: Eval Score = {evalScore}");
                                 if (evalScore > bestEvalScore)
                                 {
@@ -1108,7 +1108,7 @@ namespace Caro.NET
                 bool showEvaluateScore = StopHereForDebugging(move, player);
 
                 // Use the latest EvaluateCell (V3_Final)
-                int currentScore = EvaluateCell_V3_Final(currentBoard, move.Row, move.Col, player);
+                int currentScore = EvaluateCell(currentBoard, move.Row, move.Col, player);
                 //if (showEvaluateScore)
                 //{
                 //    Debug.WriteLine("Warning: AI V6 Lookahead: Row: {0}, Column: {1}. Evaluate Score: {2}", move.Row, move.Col, currentScore);
@@ -1147,13 +1147,13 @@ namespace Caro.NET
 
             return bestHeuristicMove;
 
-        } // End of FindBestMoveAggressive_V6_Lookahead
+        } // End of FindBestMoveAggressive
 
         // Include other necessary methods:
-        // SCORE_AGGRESSIVE_V2 dictionary
+        // SCORE_AGGRESSIVE dictionary
         // CheckWin(...)
         // ScoreLine_V3_Final(...) -> No early return, includes neutralize bonus calc
-        // EvaluateCell_V3_Final(...) -> Calls ScoreLine_V3_Final
+        // EvaluateCell(...) -> Calls ScoreLine_V3_Final
         // GetPossibleMoves(...)
         // CalculateNeutralizeBonus(...) -> Helper for ScoreLine
         // CountAndScoreSequence_Helper(...) -> Helper for GetBlockedThreatScore and ScoreLine
@@ -1163,9 +1163,9 @@ namespace Caro.NET
 
 //**Summary of Changes:**
 
-//1.  * *`SCORE_AGGRESSIVE_V2`**: Introduced with `NEUTRALIZE_FOUR_BONUS` and `NEUTRALIZE_THREE_BONUS`.
+//1.  * *`SCORE_AGGRESSIVE`**: Introduced with `NEUTRALIZE_FOUR_BONUS` and `NEUTRALIZE_THREE_BONUS`.
 //2.  **`ScoreLine_V2`**: Replaces `scoreLine`. Contains the core logic change, including the `CheckNeutralizeBonus` helper function to add bonus points when a move successfully double-blocks an opponent's sequence of 3 or 4.
 //3.  **`EvaluateCell_V2`**: Replaces `evaluateCell`. Its only change is that it now calls `ScoreLine_V2`.
 //4.  **`FindBestMoveAggressive`**: Replaces `findBestMoveAggressive`. It now calls `EvaluateCell_V2`. The explicit, separate step for checking and blocking opponent's open fours (`FindAndEvaluateForcedBlock`) has been removed, as the improved `EvaluateCell_V2` (thanks to `ScoreLine_V2`) should now correctly assign a higher innerScore to the proper neutralizing block, making the separate check redundant.
 
-//Remember to update your game logic to use `FindBestMoveAggressive_V2` and ensure the `CaroAI` class uses the `SCORE_AGGRESSIVE_V2` tab
+//Remember to update your game logic to use `FindBestMoveAggressive_V2` and ensure the `CaroAI` class uses the `SCORE_AGGRESSIVE` tab
