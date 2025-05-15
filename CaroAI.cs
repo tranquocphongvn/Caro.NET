@@ -316,8 +316,8 @@ namespace Caro.NET
 
                     // Check backwards
                     // for backward
-                    int backward_r = row - dr; int backward_c = col - dc;
-                    int backward_count = 1; // start from 1, because the backward_r = row - dr; backward_c = col - dc, above
+                    int backward_r = r - dr; int backward_c = c - dc;
+                    int backward_count = 1; // start from 1, because the backward_r = r - dr; backward_c = c - dc, above
                     int backward_empty = 0;
                     int backward_consecutive = 0;
                     bool backward_full_consecutive = true;
@@ -344,6 +344,7 @@ namespace Caro.NET
                             }
                             else if (currentBoard[backward_r, backward_c] == EMPTY_CELL)
                             {
+                                backward_full_consecutive = backward_full_consecutive && (backward_consecutive > 0);
                                 backward_empty++;
                                 backward_pattern[WIN_LENGTH - backward_count] = EMPTY_CELL;
                             }
@@ -357,7 +358,7 @@ namespace Caro.NET
 
                     // Check forwards
                     // for forward
-                    int forward_r = row + dr; int forward_c = col + dc;
+                    int forward_r = r + dr; int forward_c = c + dc;
                     int forward_count = 1; // start from 1, because the forward_r = row + dr; forward_c = col + dc, above
                     int forward_empty = 0;
                     int forward_consecutive = 0;
@@ -385,6 +386,7 @@ namespace Caro.NET
                             }
                             else if (currentBoard[forward_r, forward_c] == EMPTY_CELL)
                             {
+                                forward_full_consecutive = forward_full_consecutive && (forward_consecutive > 0);
                                 forward_empty++;
                                 forward_pattern[forward_count - 1] = EMPTY_CELL;
                             }
@@ -418,8 +420,11 @@ namespace Caro.NET
                     }
                     else if (consecutive == WIN_LENGTH)
                     {
-                        // max value
-                        innerScore = currentScores["FIVE"];
+                        if (backward_full_consecutive && forward_full_consecutive)
+                            // max value
+                            innerScore = currentScores["FIVE"];
+                        else
+                            innerScore = BLOCKED_SCORE;
                     }
                     else if (backward_count + forward_count <= WIN_LENGTH + 1)
                     {
@@ -430,11 +435,11 @@ namespace Caro.NET
                     else
                     {
                         // Maybe over 6 (WIN_LENGTH + 1, because counts start from 1) in the row
-                        if (!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(backward_r + dr, backward_c + dc) && currentBoard[backward_r + dr, backward_c + dc] == p) // + dr, dc
+                        if (!backward_bound && backward_count >= WIN_LENGTH && backward_empty <= 2 && IsInCaroBoard(r - WIN_LENGTH * dr, c - WIN_LENGTH * dc) && currentBoard[r - WIN_LENGTH * dr, c - WIN_LENGTH * dc] == p) // - dr, dc
                         {
                             backward_bound = true;
                         }
-                        else if (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(forward_r - dr, forward_c - dc) && currentBoard[forward_r - dr, forward_c - dc] == p) // - dr, dc
+                        else if (!forward_bound && forward_count >= WIN_LENGTH && forward_empty <= 2 && IsInCaroBoard(r + WIN_LENGTH * dr, c + WIN_LENGTH * dc) && currentBoard[r + WIN_LENGTH * dr, c + WIN_LENGTH * dc] == p) // + dr, dc
                         {
                             forward_bound = true;
                         }
@@ -825,8 +830,8 @@ namespace Caro.NET
             }
             currentBoard[row, col] = EMPTY_CELL; // Revert board
             // Add center bonus
-            double centerBonus = ((BOARD_SIZE / 2.0 - Math.Abs(row - (BOARD_SIZE - 1.0) / 2.0)) + (BOARD_SIZE / 2.0 - Math.Abs(col - (BOARD_SIZE - 1.0) / 2.0)));
-            totalScore += (int)(centerBonus * 0.5);
+            //double centerBonus = ((BOARD_SIZE / 2.0 - Math.Abs(row - (BOARD_SIZE - 1.0) / 2.0)) + (BOARD_SIZE / 2.0 - Math.Abs(col - (BOARD_SIZE - 1.0) / 2.0)));
+            //totalScore += (int)(centerBonus * 0.5);
 
             CaroBoard.PutEvaluatedValueIntoBoard(row, col, totalScore);
 
